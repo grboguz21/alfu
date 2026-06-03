@@ -1,0 +1,26 @@
+# Bozuk/eksik LFS dosyaları
+engine/trackers/strongsort/deep/checkpoint/osnet_x0_25_msmt17.pt
+
+# Çalışma zamanı dosyaları
+state/
+logs/
+queue_log_*.json
+camera_alarms/
+recordings/
+
+# Python
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.Python
+*.egg-info/
+dist/
+build/
+
+# CUDA dump
+*.dmp
+
+# OS
+.DS_Store
+Thumbs.db
