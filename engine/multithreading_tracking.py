@@ -86,7 +86,7 @@ class Cap:
                 print(f"CAP: Stream disconnected — reconnecting in {delay}s "
                       f"(attempt {attempt})...")
 
-                if attempt == 1 and self.on_disconnect and self._had_successful_frame:
+                if attempt == 1 and self.on_disconnect and self._had_successful_frame and not self._stop_requested:
                     try:
                         self.on_disconnect()
                     except Exception:
