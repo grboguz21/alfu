@@ -108,7 +108,7 @@ class ReportManager:
         self.periodic_reports[name] = {
             "interval":   interval_seconds,
             "data_func":  data_func,
-            "last_sent":  None,
+            "last_sent":  datetime.datetime.now(),
             "camera_id":  camera_id,
             "module_id":  module_id,
         }
