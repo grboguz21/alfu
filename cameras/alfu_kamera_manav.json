@@ -1,0 +1,171 @@
+{
+    "enabled": true,
+    "minio_folder": "alfu_kamera_manav",
+    "engine_path": "models/yolo26l.pt",
+    "camera_id": "92325356-c61d-4097-b34f-88e16fb42fe9",
+    "module_id": "85dbc19f-a439-4da3-96e1-74e190c19898",
+    "rtsp_url": "rtsp://YoUr46tdf:i75fgUyhg487Y@62.31.126.224:554/Streaming/Channels/2301",
+    "gst_framerate": 10,
+    "frame_resize": 0.3,
+    "video_path": "",
+    "reports": [
+        {
+            "name": "bolge_vakit_raporu",
+            "module_id": "85dbc19f-a439-4da3-96e1-74e190c19898",
+            "interval_seconds": 60,
+            "fields": [
+                "Zone 1 Dwell Time Sec"
+            ]
+        }
+    ],
+    "alarms": [
+        {
+            "name": "lens_closed_alarm",
+            "module_id": "30a332f5-0df9-45a2-81d7-ba274d78b2e7",
+            "cooldown_seconds": 10,
+            "trigger_on": "should_alert",
+            "with_snapshot": true,
+            "data": {
+                "Status": "Camera Lens Closed"
+            }
+        }
+    ],
+    "modules": [
+        {
+            "type": "bolge_vakit_analizi",
+            "name": "bolge_vakit_manav",
+            "dwell_threshold": 6.0,
+            "reference": "foot",
+            "scale": 0.3,
+            "show_panel": true,
+            "zones": [
+                {
+                    "name": "Zone 1",
+                    "points": [
+                        [
+                            2555,
+                            1940
+                        ],
+                        [
+                            2557,
+                            750
+                        ],
+                        [
+                            1457,
+                            287
+                        ],
+                        [
+                            1452,
+                            337
+                        ],
+                        [
+                            1417,
+                            345
+                        ],
+                        [
+                            1417,
+                            385
+                        ],
+                        [
+                            1407,
+                            547
+                        ],
+                        [
+                            1357,
+                            575
+                        ],
+                        [
+                            1345,
+                            645
+                        ],
+                        [
+                            1195,
+                            657
+                        ],
+                        [
+                            1192,
+                            705
+                        ],
+                        [
+                            1100,
+                            705
+                        ],
+                        [
+                            1097,
+                            625
+                        ],
+                        [
+                            990,
+                            575
+                        ],
+                        [
+                            797,
+                            850
+                        ],
+                        [
+                            757,
+                            1082
+                        ],
+                        [
+                            945,
+                            1247
+                        ],
+                        [
+                            967,
+                            1400
+                        ],
+                        [
+                            902,
+                            1820
+                        ],
+                        [
+                            892,
+                            1932
+                        ]
+                    ],
+                    "color": [
+                        0,
+                        255,
+                        0
+                    ]
+                }
+            ]
+        },
+        {
+            "type": "face_blurring",
+            "name": "yuz_blur_manav",
+            "model_path": "models/yolov8l_100e.pt",
+            "confidence": 0.45,
+            "process_every_n": 2,
+            "show_panel": false
+        },
+        {
+            "type": "lens_detector",
+            "name": "lens_manav",
+            "cooldown": 999999,
+            "blur_threshold": 100.0,
+            "resize_factor": 10,
+            "night_threshold": 30.0,
+            "baseline_window": 50,
+            "show_panel": true
+        }
+    ],
+    "reconnect_delay_sec": 5,
+    "stream_alarm": {
+        "enabled": true,
+        "cooldown_seconds": 0,
+        "module_id": "0b86ed27-63ed-41e5-a290-a7dd56d61c7f",
+        "data": {
+            "Status": "Camera Connection Lost"
+        }
+    },
+    "camera_move_alarm": {
+        "enabled": true,
+        "show_panel": true,
+        "cooldown_seconds": 5,
+        "rois": [],
+        "data": {
+            "Status": "Camera Angle Changed"
+        }
+    }
+}

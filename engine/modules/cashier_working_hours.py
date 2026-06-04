@@ -1,9 +1,8 @@
 """
-Kasiyer Süresi Modülü
----------------------
-Tanımlı polygon ROI'ler içinde kişi tespiti yaparak kasiyerlerin
-aktif çalışma sürelerini saniye cinsinden biriktirir.
-Ana pipeline'ın (YOLO + tracker) bboxes çıktısını kullanır (Tür A).
+Cashier Working Hours Module
+----------------------------
+Tracks active working time of cashiers by detecting persons
+inside defined polygon ROIs using pipeline bboxes (Type A).
 
 Config example:
     {
@@ -11,11 +10,11 @@ Config example:
         "name":        "kasiyer_suresi_cam1",
         "kasalar": [
             {
-                "id":     "KASA-01",
+                "id":     "Payment Points 1",
                 "coords": [[1520,456],[2110,394],[2026,8],[1448,0],[1520,458]]
             },
             {
-                "id":     "KASA-02",
+                "id":     "Payment Points 2",
                 "coords": [[6,144],[420,272],[226,608],[4,594],[10,144]]
             }
         ],
@@ -27,10 +26,10 @@ Config example:
 
 get_data() output:
     {
-        "Kasa 1 Active Minutes": float,
-        "Kasa 1 Is Active":      bool,
-        "Kasa 2 Active Minutes": float,
-        "Kasa 2 Is Active":      bool
+        "Payment Points 1 Active Minutes": float,
+        "Payment Points 1 Is Active":      bool,
+        "Payment Points 2 Active Minutes": float,
+        "Payment Points 2 Is Active":      bool
     }
 """
 
@@ -50,32 +49,31 @@ from .base import BaseModule
 STATE_DIR         = "state"
 SAVE_INTERVAL_SEC = 30
 
-# Varsayılan görüntü boyutları
+# Default image dimensions
 DEFAULT_ORIGINAL_W = 2560
 DEFAULT_ORIGINAL_H = 1440
 DEFAULT_DISPLAY_W  = 1280
 
-# Renkler (BGR)
+# Colors (BGR)
 COLOR_PALETTE = [
-    (235, 206, 135),   # Sarımsı - Kasa 1
-    (255, 105, 180),   # Pembe   - Kasa 2
-    (0,   255, 165),   # Yeşil   - Kasa 3
-    (255, 165,   0),   # Turuncu - Kasa 4
+    (235, 206, 135),   # Yellowish  - Point 1
+    (255, 105, 180),   # Pink       - Point 2
+    (0,   255, 165),   # Green      - Point 3
+    (255, 165,   0),   # Orange     - Point 4
 ]
-COLOR_PERSON_OUT  = (150, 240, 0)    # Fosforlu Yeşil - alan dışı kişi
+COLOR_PERSON_OUT  = (150, 240, 0)    # Lime green - person outside zone
 COLOR_WHITE       = (255, 255, 255)
 COLOR_DARK        = (15,  15,  15)
 COLOR_DARK_BORDER = (40,  40,  40)
-COLOR_PANEL_BG    = (15, 108, 242)   # Panel arka plan (turuncu-mavi)
+COLOR_PANEL_BG    = (15, 108, 242)   # Panel background
 
 
 # ==================== MODULE ====================
 
 class KasiyerSuresiModule(BaseModule):
     """
-    Tür A — Pipeline sonuçlarını kullanan modül.
-    Ana YOLO modelinin tespit ettiği kişi bbox'larını kullanır,
-    her kasa için ayrı Shapely polygon kontrolü yapar.
+    Type A — uses pipeline bboxes.
+    Detects persons inside each cashier polygon using the main YOLO model output.
     """
 
     def __init__(
@@ -91,42 +89,43 @@ class KasiyerSuresiModule(BaseModule):
         self.name       = name
         self.show_panel = show_panel
 
-        # Ölçek hesabı
+        # Scale ratio
         self._orig_w   = original_w
         self._orig_h   = original_h
         self._disp_w   = display_w
         self._ratio    = display_w / float(original_w)
         self._disp_h   = int(original_h * self._ratio)
 
-        # Kasa tanımlarını hazırla
+        # Build cashier zone list
         if kasalar is None:
             kasalar = []
         self._kasalar = self._build_kasalar(kasalar)
 
-        # İç durum — her kasaya ayrı sayaç
+        # Per-zone counters
         for k in self._kasalar:
             k["total_seconds"] = 0.0
             k["is_active"]     = False
             k["session_start"] = None
 
-        # draw() için son durum — update() çağrılmadan None
-        self._last_status = None
+        # draw() guard — None until update() is called
+        self._last_status    = None
+        self._last_points    = []
         self._last_save_time = 0.0
         self._last_reset_date = None
 
         self._load_state()
-        print(f"✅ KasiyerSuresiModule ready [{name}] — {len(self._kasalar)} kasa")
+        print(f"✅ KasiyerSuresiModule ready [{name}] — {len(self._kasalar)} zones")
 
     # ==================== SETUP ====================
 
     def _build_kasalar(self, kasalar_cfg: list) -> list:
-        """Config listesinden Shapely polygon ve scaled koordinatları üretir."""
+        """Builds Shapely polygons and scaled display coords from config."""
         result = []
         for idx, cfg in enumerate(kasalar_cfg):
-            kasa_id = cfg.get("id", f"KASA-{idx+1:02d}")
+            kasa_id = cfg.get("id", f"Zone-{idx+1:02d}")
             coords  = [tuple(p) for p in cfg.get("coords", [])]
             if len(coords) < 3:
-                print(f"[{self.name}] Uyarı: {kasa_id} için yetersiz koordinat, atlanıyor.")
+                print(f"[{self.name}] Warning: {kasa_id} has insufficient coordinates, skipping.")
                 continue
 
             color         = COLOR_PALETTE[idx % len(COLOR_PALETTE)]
@@ -156,8 +155,8 @@ class KasiyerSuresiModule(BaseModule):
                 for k in self._kasalar
             ]
             state = {
-                "date":   (self._last_reset_date.isoformat()
-                           if self._last_reset_date else None),
+                "date":    (self._last_reset_date.isoformat()
+                            if self._last_reset_date else None),
                 "kasalar": kasalar_state,
             }
             tmp = self._state_path() + f".{os.getpid()}.tmp"
@@ -180,7 +179,7 @@ class KasiyerSuresiModule(BaseModule):
     def _load_state(self):
         path = self._state_path()
         if not os.path.exists(path):
-            print(f"[{self.name}] State dosyası yok, sıfırdan başlanıyor.")
+            print(f"[{self.name}] No state file, starting fresh.")
             return
         try:
             with open(path, encoding="utf-8") as f:
@@ -188,10 +187,9 @@ class KasiyerSuresiModule(BaseModule):
             saved_date = state.get("date")
             today      = datetime.datetime.now().date().isoformat()
             if saved_date != today:
-                print(f"[{self.name}] State eski tarihte ({saved_date}), sıfırdan başlanıyor.")
+                print(f"[{self.name}] State outdated ({saved_date}), starting fresh.")
                 return
 
-            # Kaydedilen süreleri eşleştir
             saved_kasalar = {s["id"]: s for s in state.get("kasalar", [])}
             for k in self._kasalar:
                 if k["id"] in saved_kasalar:
@@ -200,10 +198,10 @@ class KasiyerSuresiModule(BaseModule):
                     )
 
             self._last_reset_date = datetime.date.fromisoformat(saved_date)
-            totals = [f"{k['id']}={k['total_seconds']/60:.1f}dk" for k in self._kasalar]
-            print(f"[{self.name}] State yüklendi: {', '.join(totals)}")
+            totals = [f"{k['id']}={k['total_seconds']/60:.1f}min" for k in self._kasalar]
+            print(f"[{self.name}] State loaded: {', '.join(totals)}")
         except Exception as e:
-            print(f"[{self.name}] State yükleme hatası: {e} — sıfırdan başlanıyor.")
+            print(f"[{self.name}] State load error: {e} — starting fresh.")
 
     # ==================== HELPERS ====================
 
@@ -219,7 +217,7 @@ class KasiyerSuresiModule(BaseModule):
                 k["session_start"] = None
             self._last_reset_date = today
             self._save_state()
-            print(f"[{self.name}] Günlük sıfırlama → {today}")
+            print(f"[{self.name}] Daily reset → {today}")
 
     @staticmethod
     def _fmt_time(seconds: float) -> str:
@@ -230,30 +228,27 @@ class KasiyerSuresiModule(BaseModule):
     # ==================== UPDATE ====================
 
     def update(self, bboxes, class_ids, scores, object_ids, frame, class_names: dict):
-        self._check_daily_reset()   # Her zaman ilk satır
+        self._check_daily_reset()
         now = _time.time()
 
-        # Hangi kasalar bu karede dolu?
-        dolu_kasalar = {k["id"]: False for k in self._kasalar}
+        # Which zones are occupied this frame?
+        occupied = {k["id"]: False for k in self._kasalar}
 
         if len(bboxes) > 0:
             for bbox, cls_id in zip(bboxes, class_ids):
-                # Sadece "person" sınıfı (COCO: 0)
                 if int(cls_id) != 0:
                     continue
-
                 x1, y1, x2, y2 = int(bbox[0]), int(bbox[1]), int(bbox[2]), int(bbox[3])
-                merkez = Point((x1 + x2) / 2, (y1 + y2) / 2)
-
+                center = Point((x1 + x2) / 2, (y1 + y2) / 2)
                 for k in self._kasalar:
-                    if k["poly"].contains(merkez):
-                        dolu_kasalar[k["id"]] = True
-                        break   # Bir kişi birden fazla kasaya sayılmasın
+                    if k["poly"].contains(center):
+                        occupied[k["id"]] = True
+                        break
 
-        # Zaman birikimi
+        # Accumulate time
         for k in self._kasalar:
-            dolu_mu = dolu_kasalar[k["id"]]
-            if dolu_mu:
+            is_occupied = occupied[k["id"]]
+            if is_occupied:
                 if not k["is_active"]:
                     k["is_active"]     = True
                     k["session_start"] = now
@@ -265,7 +260,7 @@ class KasiyerSuresiModule(BaseModule):
                     k["is_active"]     = False
                     k["session_start"] = None
 
-        # draw() için son durumu sakla
+        # Store state for draw()
         self._last_status = {
             k["id"]: {
                 "is_active":     k["is_active"],
@@ -276,28 +271,27 @@ class KasiyerSuresiModule(BaseModule):
             }
             for k in self._kasalar
         }
-        # Ayrıca merkez noktaları draw() için sakla
+
+        # Store person center points for draw()
         self._last_points = []
         if len(bboxes) > 0:
             for bbox, cls_id in zip(bboxes, class_ids):
                 if int(cls_id) != 0:
                     continue
                 x1, y1, x2, y2 = int(bbox[0]), int(bbox[1]), int(bbox[2]), int(bbox[3])
-                orig_cx = int((x1 + x2) / 2)
-                orig_cy = int((y1 + y2) / 2)
-                merkez  = Point(orig_cx, orig_cy)
+                cx     = int((x1 + x2) / 2)
+                cy     = int((y1 + y2) / 2)
+                center = Point(cx, cy)
 
                 point_color = COLOR_PERSON_OUT
                 for k in self._kasalar:
-                    if k["poly"].contains(merkez):
+                    if k["poly"].contains(center):
                         point_color = k["border_color"]
                         break
 
-                disp_cx = int(orig_cx * self._ratio)
-                disp_cy = int(orig_cy * self._ratio)
-                self._last_points.append((disp_cx, disp_cy, point_color))
+                self._last_points.append((cx, cy, point_color))
 
-        # Periyodik kayıt
+        # Periodic save
         if now - self._last_save_time >= SAVE_INTERVAL_SEC:
             self._save_state()
             self._last_save_time = now
@@ -321,78 +315,77 @@ class KasiyerSuresiModule(BaseModule):
     # ==================== DRAW ====================
 
     def draw(self, frame):
-        if self._last_status is None:   # update() henüz çağrılmadı
+        if self._last_status is None:
             return frame
 
         now = _time.time()
 
-        # 1. Polygon sınırlarını çiz
+        # 1. Draw zone polygons
         for k in self._kasalar:
             status = self._last_status[k["id"]]
             pts    = np.array(status["coords_scaled"], np.int32)
             cv2.polylines(frame, [pts], True, status["border_color"], 2, cv2.LINE_AA)
 
-            # Etiket kapsülü (sol üst köşe)
+            # Label capsule (top-left corner of zone)
             total = status["total_seconds"]
             if status["is_active"] and status["session_start"]:
                 total += now - status["session_start"]
 
-            metin       = f" {k['id']} | {self._fmt_time(total)} "
-            yazi_x, yazi_y = status["coords_scaled"][0]
-            yazi_y_adj  = max(yazi_y - 12, 25)
-            (tw, th), _ = cv2.getTextSize(metin, cv2.FONT_HERSHEY_SIMPLEX, 0.35, 1)
+            label       = f" {k['id']} | {self._fmt_time(total)} "
+            label_x, label_y = status["coords_scaled"][0]
+            label_y_adj = max(label_y - 12, 25)
+            (tw, th), _ = cv2.getTextSize(label, cv2.FONT_HERSHEY_SIMPLEX, 0.35, 1)
 
-            # Arka plan kutusu
+            # Background box
             cv2.rectangle(
                 frame,
-                (yazi_x - 2, yazi_y_adj - th - 5),
-                (yazi_x + tw + 2, yazi_y_adj + 5),
+                (label_x - 2, label_y_adj - th - 5),
+                (label_x + tw + 2, label_y_adj + 5),
                 COLOR_DARK, -1,
             )
-            # Renkli sol kenar çizgisi
+            # Colored left border
             cv2.rectangle(
                 frame,
-                (yazi_x - 2, yazi_y_adj - th - 5),
-                (yazi_x + 1, yazi_y_adj + 5),
+                (label_x - 2, label_y_adj - th - 5),
+                (label_x + 1, label_y_adj + 5),
                 status["border_color"], -1,
             )
-            # İnce siyah çerçeve
+            # Thin dark outline
             cv2.rectangle(
                 frame,
-                (yazi_x - 2, yazi_y_adj - th - 5),
-                (yazi_x + tw + 2, yazi_y_adj + 5),
+                (label_x - 2, label_y_adj - th - 5),
+                (label_x + tw + 2, label_y_adj + 5),
                 COLOR_DARK_BORDER, 1, cv2.LINE_AA,
             )
             cv2.putText(
-                frame, metin,
-                (yazi_x + 2, yazi_y_adj),
+                frame, label,
+                (label_x + 2, label_y_adj),
                 cv2.FONT_HERSHEY_SIMPLEX, 0.35, COLOR_WHITE, 1, cv2.LINE_AA,
             )
 
-        # 2. Kişi merkez noktaları
-        if hasattr(self, "_last_points"):
-            for (cx, cy, color) in self._last_points:
-                cv2.circle(frame, (cx, cy), 4, color, -1, cv2.LINE_AA)
+        # 2. Person center dots
+        for (cx, cy, color) in self._last_points:
+            cv2.circle(frame, (cx, cy), 4, color, -1, cv2.LINE_AA)
 
-        # 3. Sağ üst bilgi paneli
+        # 3. Status panel (top-right)
         if self.show_panel:
             frame = self._draw_panel(frame, now)
 
         return frame
 
     def _draw_panel(self, frame, now: float):
-        panel_w  = 195
-        line_h   = 25
-        padding  = 10
-        panel_h  = padding * 2 + line_h * len(self._kasalar)
+        panel_w = 195
+        line_h  = 25
+        padding = 10
+        panel_h = padding * 2 + line_h * len(self._kasalar)
 
-        h, w     = frame.shape[:2]
-        px1      = w - panel_w - 20
-        py1      = 20
-        px2      = w - 20
-        py2      = py1 + panel_h
+        h, w = frame.shape[:2]
+        px1  = w - panel_w - 20
+        py1  = 20
+        px2  = w - 20
+        py2  = py1 + panel_h
 
-        # Yarı saydam arka plan
+        # Semi-transparent background
         overlay = frame.copy()
         cv2.rectangle(overlay, (px1, py1), (px2, py2), COLOR_PANEL_BG, -1)
         cv2.addWeighted(overlay, 0.90, frame, 0.10, 0, frame)
@@ -402,10 +395,10 @@ class KasiyerSuresiModule(BaseModule):
             total = k["total_seconds"]
             if k["is_active"] and k["session_start"]:
                 total += now - k["session_start"]
-            metin = f"{k['id']}: {self._fmt_time(total)}"
+            label = f"{k['id']}: {self._fmt_time(total)}"
             y_pos = py1 + padding + line_h * idx + 18
             cv2.putText(
-                frame, metin,
+                frame, label,
                 (px1 + 12, y_pos),
                 cv2.FONT_HERSHEY_SIMPLEX, 0.42, COLOR_WHITE, 1, cv2.LINE_AA,
             )
@@ -421,7 +414,7 @@ class KasiyerSuresiModule(BaseModule):
                 k["session_start"]  = None
                 k["is_active"]      = False
         self._save_state()
-        print(f"[{self.name}] Shutdown tamamlandı, state kaydedildi.")
+        print(f"[{self.name}] Shutdown complete, state saved.")
 
     # ==================== RESET ====================
 
@@ -431,4 +424,4 @@ class KasiyerSuresiModule(BaseModule):
             k["is_active"]     = False
             k["session_start"] = None
         self._save_state()
-        print(f"[{self.name}] Manuel sıfırlama yapıldı.")
+        print(f"[{self.name}] Manual reset done.")
