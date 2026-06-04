@@ -1,6 +1,7 @@
 from .face_blurring            import FaceBlurringModule
 from .lens_detector            import LensDetectorModule
 from .market_client_counter    import MarketClientCounterModule
+from .cashier_working_hours    import KasiyerSuresiModule
 
 def _scale_pt(pt, ratio: float):
     return [int(pt[0] * ratio), int(pt[1] * ratio)]
@@ -39,6 +40,7 @@ MODULE_REGISTRY = {
     "face_blurring":           FaceBlurringModule,
     "lens_detector":           LensDetectorModule,
     "market_client_counter":   MarketClientCounterModule,
+    "kasiyer_suresi":          KasiyerSuresiModule,
 }
 
 

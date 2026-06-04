@@ -1,0 +1,149 @@
+{
+    "enabled": true,
+    "minio_folder": "alfu_kamera_kasa",
+    "engine_path": "models/yolo26l.pt",
+    "camera_id": "92325356-c61d-4097-b34f-88e16fb42fe9",
+    "module_id": "85dbc19f-a439-4da3-96e1-74e190c19898",
+    "rtsp_url": "rtsp://YoUr46tdf:i75fgUyhg487Y@62.31.126.224:554/Streaming/Channels/2301",
+    "gst_framerate": 10,
+    "frame_resize": 0.3,
+    "video_path": "",
+    "reports": [
+        {
+            "name": "cashier_working_hours",
+            "module_id": "85dbc19f-a439-4da3-96e1-74e190c19898",
+            "interval_seconds": 60,
+            "fields": [
+                "Kasa 1 Active Minutes",
+                "Kasa 2 Active Minutes"
+            ]
+        }
+    ],
+    "alarms": [
+        {
+            "name": "lens_closed_alarm",
+            "module_id": "30a332f5-0df9-45a2-81d7-ba274d78b2e7",
+            "cooldown_seconds": 10,
+            "trigger_on": "should_alert",
+            "with_snapshot": true,
+            "data": {
+                "Status": "Camera Lens Closed"
+            }
+        }
+    ],
+    "modules": [
+        {
+            "type": "kasiyer_suresi",
+            "name": "kasiyer_suresi_kasa",
+            "original_w": 2560,
+            "original_h": 1440,
+            "display_w": 768,
+            "show_panel": true,
+            "kasalar": [
+                {
+                    "id": "Kasa 1",
+                    "coords": [
+                        [
+                            2,
+                            568
+                        ],
+                        [
+                            308,
+                            570
+                        ],
+                        [
+                            374,
+                            248
+                        ],
+                        [
+                            2,
+                            254
+                        ]
+                    ]
+                },
+                {
+                    "id": "Kasa 2",
+                    "coords": [
+                        [
+                            1536,
+                            416
+                        ],
+                        [
+                            1950,
+                            388
+                        ],
+                        [
+                            1824,
+                            100
+                        ],
+                        [
+                            1454,
+                            120
+                        ]
+                    ]
+                }
+            ]
+        },
+        {
+            "type": "face_blurring",
+            "name": "yuz_blur_cam2",
+            "model_path": "models/yolov8l_100e.pt",
+            "confidence": 0.45,
+            "process_every_n": 2,
+            "show_panel": false
+        },
+        {
+            "type": "lens_detector",
+            "name": "kamera2_lens",
+            "cooldown": 999999,
+            "blur_threshold": 100.0,
+            "resize_factor": 10,
+            "night_threshold": 30.0,
+            "baseline_window": 50,
+            "show_panel": true
+        }
+    ],
+    "reconnect_delay_sec": 5,
+    "stream_alarm": {
+        "enabled": true,
+        "cooldown_seconds": 0,
+        "module_id": "0b86ed27-63ed-41e5-a290-a7dd56d61c7f",
+        "data": {
+            "Status": "Camera Connection Lost"
+        }
+    },
+    "camera_move_alarm": {
+        "enabled": true,
+        "show_panel": true,
+        "cooldown_seconds": 5,
+        "rois": [
+            [
+                114,
+                628
+            ],
+            [
+                58,
+                275
+            ],
+            [
+                83,
+                29
+            ],
+            [
+                536,
+                0
+            ],
+            [
+                1220,
+                445
+            ],
+            [
+                1212,
+                665
+            ]
+        ],
+        "data": {
+            "Status": "Camera Angle Changed"
+        }
+    }
+}
