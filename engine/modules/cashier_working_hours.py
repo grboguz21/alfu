@@ -130,11 +130,12 @@ class KasiyerSuresiModule(BaseModule):
                 continue
 
             color         = COLOR_PALETTE[idx % len(COLOR_PALETTE)]
+            scaled_coords = [(int(x * self._ratio), int(y * self._ratio)) for x, y in coords]
 
             result.append({
                 "id":             kasa_id,
-                "poly":           Polygon(coords),
-                "coords_scaled":  coords,
+                "poly":           Polygon(scaled_coords),
+                "coords_scaled":  scaled_coords,
                 "border_color":   color,
             })
         return result
