@@ -10,14 +10,13 @@ import threading
 import time
 from pathlib import Path
 
-
 import torch
 import multiprocessing
 from engine.multithreading_tracking import MultiThreadingTracker
-from engine.minio_manager import MinIOManager
-from engine.modules import ModuleRunner
-from engine.rtsp_probe import build_gst_pipeline
-from report_manager import ReportManager
+from engine.minio_manager           import MinIOManager
+from engine.modules                 import ModuleRunner
+from engine.rtsp_probe              import build_gst_pipeline
+from report_manager                 import ReportManager
 
 
 def load_config(path: str = "config.json") -> dict:
@@ -25,7 +24,6 @@ def load_config(path: str = "config.json") -> dict:
     assert config_path.exists(), f"Config file not found: {path}"
     with open(config_path, encoding="utf-8") as f:
         cfg = json.load(f)
-
     cameras_dir = config_path.parent / "cameras"
     cameras = []
     if cameras_dir.is_dir():
@@ -35,42 +33,41 @@ def load_config(path: str = "config.json") -> dict:
     cfg["cameras"] = cameras
     return cfg
 
-def track_video(video_path=None,
-                engine_path=None,
-                tracker="ocsort",
-                batch_size=1,
-                device=0,
-                img_size=640,
-                max_age=30,
-                min_hits=3,
-                iou_threshold=0.3,
-                gst_pipeline=None,
-                minio_folder="Kamera",
-                display=False,
-                ):
+
+def track_video(video_path       = None,
+                engine_path      = None,
+                tracker          = "ocsort",
+                batch_size       = 1,
+                device           = 0,
+                img_size         = 640,
+                max_age          = 30,
+                min_hits         = 3,
+                iou_threshold    = 0.3,
+                gst_pipeline     = None,
+                minio_folder     = "Kamera",
+                display          = False,
+                detection_client = None):   # ← YENİ parametre
 
     mtt = MultiThreadingTracker()
-
     cfg = load_config()
-
     cam_cfg = next((c for c in cfg["cameras"] if c["minio_folder"] == minio_folder), {})
 
     m = cfg["minio"]
     minio = MinIOManager(
-        endpoint=m["endpoint"],
-        access_key=m["access_key"],
-        secret_key=m["secret_key"],
-        branch_name=m["branch_name"],
-        secure=m.get("secure", False),
-        bucket_name=m.get("bucket_name", "ai-outputs")
+        endpoint    = m["endpoint"],
+        access_key  = m["access_key"],
+        secret_key  = m["secret_key"],
+        branch_name = m["branch_name"],
+        secure      = m.get("secure", False),
+        bucket_name = m.get("bucket_name", "ai-outputs"),
     )
 
     a = cfg["api"]
     report = ReportManager(
-        gateway_base=a["gateway_base"],
-        api_key=a["api_key"],
-        branch_id=a["branch_id"],
-        log_file=f"queue_log_{minio_folder}.json",
+        gateway_base = a["gateway_base"],
+        api_key      = a["api_key"],
+        branch_id    = a["branch_id"],
+        log_file     = f"queue_log_{minio_folder}.json",
     )
 
     _frame_resize = cam_cfg.get("frame_resize", 1.0)
@@ -79,38 +76,38 @@ def track_video(video_path=None,
     _reports_cfg = cam_cfg.get("reports") or []
     if not _reports_cfg and cam_cfg.get("report_interval_seconds"):
         _reports_cfg = [{
-            "name":             cam_cfg.get("report_name", "istasyon_doluluk"),
-            "module_id":        cam_cfg.get("module_id"),
+            "name"            : cam_cfg.get("report_name", "istasyon_doluluk"),
+            "module_id"       : cam_cfg.get("module_id"),
             "interval_seconds": cam_cfg["report_interval_seconds"],
-            "fields":           cam_cfg.get("report_fields"),
+            "fields"          : cam_cfg.get("report_fields"),
         }]
 
     for r in _reports_cfg:
         if r.get("type") == "alarm":
             report.add_alarm(
-                name=r["name"],
-                cooldown_seconds=r["interval_seconds"],
-                camera_id=cam_cfg.get("camera_id"),
-                module_id=r.get("module_id") or cam_cfg.get("module_id"),
-                data={},
+                name             = r["name"],
+                cooldown_seconds = r["interval_seconds"],
+                camera_id        = cam_cfg.get("camera_id"),
+                module_id        = r.get("module_id") or cam_cfg.get("module_id"),
+                data             = {},
             )
         else:
             report.add_periodic_report(
-                name=r["name"],
-                interval_seconds=r["interval_seconds"],
-                data_func=modules.get_data,
-                camera_id=cam_cfg.get("camera_id"),
-                module_id=r.get("module_id") or cam_cfg.get("module_id"),
+                name             = r["name"],
+                interval_seconds = r["interval_seconds"],
+                data_func        = modules.get_data,
+                camera_id        = cam_cfg.get("camera_id"),
+                module_id        = r.get("module_id") or cam_cfg.get("module_id"),
             )
 
     for alarm_cfg in cam_cfg.get("alarms", []):
         report.add_alarm(
-            name=alarm_cfg["name"],
-            cooldown_seconds=alarm_cfg.get("cooldown_seconds", 30),
-            camera_id=cam_cfg.get("camera_id"),
-            module_id=alarm_cfg.get("module_id") or cam_cfg.get("module_id"),
-            once_per_day=alarm_cfg.get("once_per_day", False),
-            data=alarm_cfg.get("data", {}),
+            name             = alarm_cfg["name"],
+            cooldown_seconds = alarm_cfg.get("cooldown_seconds", 30),
+            camera_id        = cam_cfg.get("camera_id"),
+            module_id        = alarm_cfg.get("module_id") or cam_cfg.get("module_id"),
+            once_per_day     = alarm_cfg.get("once_per_day", False),
+            data             = alarm_cfg.get("data", {}),
         )
 
     source = gst_pipeline if gst_pipeline is not None else video_path
@@ -120,11 +117,11 @@ def track_video(video_path=None,
     stream_alarm_cfg = cam_cfg.get("stream_alarm", {})
     if gst_pipeline and stream_alarm_cfg.get("enabled", True):
         report.add_alarm(
-            name="stream_kesintisi",
-            cooldown_seconds=stream_alarm_cfg.get("cooldown_seconds", 60),
-            camera_id=cam_cfg.get("camera_id"),
-            module_id=stream_alarm_cfg.get("module_id") or cam_cfg.get("module_id"),
-            data=stream_alarm_cfg.get("data", {"Status": "Camera Connection Lost"}),
+            name             = "stream_kesintisi",
+            cooldown_seconds = stream_alarm_cfg.get("cooldown_seconds", 60),
+            camera_id        = cam_cfg.get("camera_id"),
+            module_id        = stream_alarm_cfg.get("module_id") or cam_cfg.get("module_id"),
+            data             = stream_alarm_cfg.get("data", {"Status": "Camera Connection Lost"}),
         )
 
     move_alarm_cfg = cam_cfg.get("camera_move_alarm", {})
@@ -132,15 +129,14 @@ def track_video(video_path=None,
     if move_alarm_cfg.get("enabled", False) and move_alarm_cfg.get("rois"):
         from engine.modules.camera_move_detection import CameraMoveDetector
         report.add_alarm(
-            name="camera_move",
-            cooldown_seconds=move_alarm_cfg.get("cooldown_seconds", 60),
-            camera_id=cam_cfg.get("camera_id"),
-            module_id=cam_cfg.get("module_id"),
-            data=move_alarm_cfg.get("data", {"Status": "Camera Angle Changed"}),
+            name             = "camera_move",
+            cooldown_seconds = move_alarm_cfg.get("cooldown_seconds", 60),
+            camera_id        = cam_cfg.get("camera_id"),
+            module_id        = cam_cfg.get("module_id"),
+            data             = move_alarm_cfg.get("data", {"Status": "Camera Angle Changed"}),
         )
-        _rois = move_alarm_cfg["rois"]
         move_detector = CameraMoveDetector(
-            rois       = _rois,
+            rois       = move_alarm_cfg["rois"],
             show_panel = move_alarm_cfg.get("show_panel", True),
         )
         print(f"[{minio_folder}] Camera movement detection active ({len(move_alarm_cfg['rois'])} ROI)")
@@ -158,18 +154,29 @@ def track_video(video_path=None,
 
     mtt.start_cap_thread(
         source,
-        resize=cam_cfg.get("frame_resize"),
-        reconnect_delay_sec=reconnect_delay_sec,
-        on_disconnect=_on_disconnect if gst_pipeline else None,
-        on_reconnect=_on_reconnect  if gst_pipeline else None,
+        resize              = cam_cfg.get("frame_resize"),
+        reconnect_delay_sec = reconnect_delay_sec,
+        on_disconnect       = _on_disconnect if gst_pipeline else None,
+        on_reconnect        = _on_reconnect  if gst_pipeline else None,
     )
 
     has_detection = bool(engine_path)
     if has_detection:
-        mtt.start_detection_thread(engine_path, batch_size=cam_cfg.get("batch_size", batch_size), device=device,
-                                   img_size=img_size, filter_classes=cam_cfg.get("detection_classes", None),
-                                   detection_fps=cam_cfg.get("detection_fps", None))
-        mtt.start_tracking_thread(tracker=tracker, max_age=max_age, min_hits=min_hits, iou_threshold=iou_threshold)
+        mtt.start_detection_thread(
+            engine_path,
+            batch_size       = cam_cfg.get("batch_size", batch_size),
+            device           = device,
+            img_size         = img_size,
+            filter_classes   = cam_cfg.get("detection_classes", None),
+            detection_fps    = cam_cfg.get("detection_fps", None),
+            detection_client = detection_client,  # ← geçir (None ise klasik mod)
+        )
+        mtt.start_tracking_thread(
+            tracker       = tracker,
+            max_age       = max_age,
+            min_hits      = min_hits,
+            iou_threshold = iou_threshold,
+        )
     else:
         print(f"[{minio_folder}] engine_path empty - detection/tracking skipped")
 
@@ -177,7 +184,7 @@ def track_video(video_path=None,
         print(f"\n[main] Signal received ({signum}), shutting down...")
         sys.exit(0)
 
-    signal.signal(signal.SIGINT, shutdown)
+    signal.signal(signal.SIGINT,  shutdown)
     signal.signal(signal.SIGTERM, shutdown)
 
     trigger_alarms = [a for a in cam_cfg.get("alarms", []) if a.get("trigger_on")]
@@ -187,14 +194,13 @@ def track_video(video_path=None,
     _is_cuda_error = False
 
     try:
-        _consecutive_empty  = 0
-        _last_health_write  = 0
+        _consecutive_empty = 0
+        _last_health_write = 0
 
         while True:
             ret, frame = mtt.get_frame()
             if not ret or frame is None:
                 _consecutive_empty += 1
-                # Detection thread öldüyse 10 saniye sonra çık
                 if has_detection and _consecutive_empty > 20:
                     od_alive = (mtt.od is not None and
                                 mtt.od.thread is not None and
@@ -296,6 +302,7 @@ PING_URL               = "https://hc-ping.com/5bc3d95c-9398-4749-9905-09582f0b61
 CAMERA_HEALTH_PING_URL = "https://hc-ping.com/f51650b4-3a42-45a3-8095-a898e40a3b46"
 HEALTH_LOG             = "logs/camera_health.log"
 
+
 def send_heartbeat_direct():
     try:
         import urllib.request
@@ -306,7 +313,6 @@ def send_heartbeat_direct():
 
 
 def write_camera_health(minio_folder: str, connected: bool):
-    """Her kamera süreci kendi sağlık durumunu state/ altına yazar."""
     health_file = Path("state") / f"health_{minio_folder}.json"
     try:
         with open(health_file, "w") as f:
@@ -316,11 +322,6 @@ def write_camera_health(minio_folder: str, connected: bool):
 
 
 def send_camera_health_ping(enabled_folders: list):
-    """
-    Tüm kameralar sağlıklıysa CAMERA_HEALTH_PING_URL'e ping atar,
-    değilse atlamaz. Sonucu HEALTH_LOG'a kaydeder.
-    max_age: HEARTBEAT_INTERVAL * 2 saniye içinde güncellenmemiş dosya stale sayılır.
-    """
     max_age   = HEARTBEAT_INTERVAL * 2
     now       = time.time()
     unhealthy = []
@@ -355,14 +356,7 @@ def send_camera_health_ping(enabled_folders: list):
 
 
 def startup_pings(enabled_folders: list):
-    """
-    main.py açılınca bir kez çalışır:
-    1. Hemen genel ping atar.
-    2. Tüm kameralar bağlanana kadar 5sn'de bir kontrol eder (max 120s).
-    3. Bağlantı sağlanınca kamera health ping atar.
-    """
     send_heartbeat_direct()
-
     deadline = time.time() + 120
     while time.time() < deadline:
         time.sleep(5)
@@ -377,7 +371,6 @@ def startup_pings(enabled_folders: list):
             )
         except Exception:
             all_ok = False
-
         if all_ok:
             try:
                 import urllib.request
@@ -386,8 +379,7 @@ def startup_pings(enabled_folders: list):
             except Exception as e:
                 print(f"[CAMERA_HEALTH] Startup ping hatasi: {e}")
             return
-
-    ts = time.strftime("%Y-%m-%d %H:%M:%S")
+    ts   = time.strftime("%Y-%m-%d %H:%M:%S")
     line = f"[{ts}] STARTUP TIMEOUT — 120s icinde kameralar baglanamadi\n"
     Path("logs").mkdir(exist_ok=True)
     with open(HEALTH_LOG, "a", encoding="utf-8") as f:
@@ -407,33 +399,82 @@ if __name__ == "__main__":
 
     cfg = load_config()
 
-    jobs = []
-    for cam in cfg["cameras"]:
-        if not cam.get("enabled", True):
+    # ── DetectionService'leri başlat ──────────────────────────────
+    from engine.detection_service import DetectionService
+
+    cameras = [c for c in cfg["cameras"] if c.get("enabled", True)]
+
+    # Aynı engine_path'i kullanan kameraları grupla
+    engine_groups: dict = {}
+    for cam in cameras:
+        ep = cam.get("engine_path", "")
+        if ep not in engine_groups:
+            engine_groups[ep] = []
+        engine_groups[ep].append(cam)
+
+    services = {}
+    clients  = {}
+
+    Path("state").mkdir(exist_ok=True)
+
+    for engine_path, cams in engine_groups.items():
+        if not engine_path:
             continue
+
+        svc = DetectionService(
+            model_path = engine_path,
+            device     = 0,
+            batch_size = max(len(cams), 4),
+            img_size   = cams[0].get("img_size", 416),
+            conf       = 0.25,
+        )
+
+        # Client'ları servis başlamadan önce oluştur
+        for cam in cams:
+            clients[cam["minio_folder"]] = svc.make_client(
+                cam_id         = cam["minio_folder"],
+                filter_classes = cam.get("detection_classes"),
+                conf           = 0.25,
+            )
+
+        # Servisi başlat — model hazır olana kadar bekler (max 60sn)
+        svc.start()
+        services[engine_path] = svc
+
+        # model.names'i client'lara aktar
+        for cam in cams:
+            clients[cam["minio_folder"]]._model_names = svc.model_names
+
+        print(f"[main] ✅ Servis hazır: {engine_path} — {len(svc.model_names)} sınıf")
+
+    print(f"[main] Tüm servisler hazır. {len(cameras)} kamera başlatılıyor...")
+    # ── DetectionService bitiş ────────────────────────────────────
+
+    jobs = []
+    for cam in cameras:
+        folder = cam["minio_folder"]
         job = {
-            "engine_path":  cam["engine_path"],
-            "minio_folder": cam["minio_folder"],
-            "display":      args.display,
+            "engine_path"     : cam["engine_path"],
+            "minio_folder"    : folder,
+            "display"         : args.display,
+            "detection_client": clients.get(folder),  # ← None ise klasik mod
         }
         if cam.get("gst_pipeline"):
             job["gst_pipeline"] = cam["gst_pipeline"]
         elif cam.get("rtsp_url"):
             job["gst_pipeline"] = build_gst_pipeline(
-                rtsp_url=cam["rtsp_url"],
-                framerate=cam.get("gst_framerate", 30),
-                width=cam.get("gst_width"),
-                height=cam.get("gst_height"),
-                latency=cam.get("gst_latency", 300),
+                rtsp_url  = cam["rtsp_url"],
+                framerate = cam.get("gst_framerate", 30),
+                width     = cam.get("gst_width"),
+                height    = cam.get("gst_height"),
+                latency   = cam.get("gst_latency", 300),
             )
         elif cam.get("video_path"):
             job["video_path"] = cam["video_path"]
-
         jobs.append(job)
 
     if len(jobs) == 1:
         _single_folders = [jobs[0]["minio_folder"]]
-
         threading.Thread(target=startup_pings, args=(_single_folders,), daemon=True).start()
 
         def heartbeat_thread():
@@ -445,7 +486,6 @@ if __name__ == "__main__":
 
         hb = threading.Thread(target=heartbeat_thread, daemon=True)
         hb.start()
-
         track_video(**jobs[0])
 
     else:
@@ -481,11 +521,29 @@ if __name__ == "__main__":
                     send_camera_health_ping(_all_folders)
                     last_camera_health_time = time.time()
 
+                # DetectionService sağlık kontrolü
+                for ep, svc in services.items():
+                    if not svc.is_alive:
+                        print(f"[supervisor] DetectionService çöktü: {ep} — yeniden başlatılıyor...")
+                        new_svc = DetectionService(
+                            model_path = ep,
+                            device     = 0,
+                            batch_size = max(len(engine_groups[ep]), 4),
+                            img_size   = engine_groups[ep][0].get("img_size", 416),
+                            conf       = 0.25,
+                        )
+                        for cam in engine_groups[ep]:
+                            clients[cam["minio_folder"]] = new_svc.make_client(
+                                cam_id         = cam["minio_folder"],
+                                filter_classes = cam.get("detection_classes"),
+                            )
+                        new_svc.start()
+                        services[ep] = new_svc
+
                 for name, entry in list(procs.items()):
                     p = entry["process"]
                     if p.is_alive():
                         continue
-
                     if entry["restarts"] < _MAX_RESTARTS:
                         print(f"[supervisor] {name} düştü (Exit: {p.exitcode}). Yeniden başlatılıyor...")
                         time.sleep(_RESTART_DELAY)
@@ -507,6 +565,8 @@ if __name__ == "__main__":
             _shutdown.set()
         finally:
             print("[supervisor] Kapatılıyor...")
+            for svc in services.values():
+                svc.stop()
             for entry in procs.values():
                 if entry["process"].is_alive():
                     entry["process"].terminate()

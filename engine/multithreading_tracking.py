@@ -8,29 +8,21 @@ import numpy as np
 from engine.shared_memory import SharedMemory, TRACKING_BUFFER_SIZE, GPU_LOCK
 
 
-"""
-Manages operations under 2 separate threads (tracking thread removed):
-
-1. Camera
-2. Detection + Tracking (same thread)
-"""
-
-
 class Cap:
     def __init__(self, resize=None, reconnect_delay_sec: int = 5,
                  on_disconnect=None, on_reconnect=None):
         assert isinstance(resize, float) or resize is None, "Resize must be a float"
-        self.thread = None
-        self.cap    = None
-        self.resize = resize
-        self.frame_count = 0
+        self.thread              = None
+        self.cap                 = None
+        self.resize              = resize
+        self.frame_count         = 0
         self.reconnect_delay_sec = reconnect_delay_sec
-        self.on_disconnect = on_disconnect
-        self.on_reconnect  = on_reconnect
-        self._source  = None
-        self._backend = cv2.CAP_ANY
+        self.on_disconnect       = on_disconnect
+        self.on_reconnect        = on_reconnect
+        self._source             = None
+        self._backend            = cv2.CAP_ANY
         self._had_successful_frame = False
-        self._stop_requested = False
+        self._stop_requested     = False
 
     def stop(self):
         self._stop_requested = True
@@ -60,9 +52,9 @@ class Cap:
 
     def get_frame(self):
         ret, frame = self.cap.read()
-        if self.resize is not None and ret and frame is not None:  # ← frame is not None ekle
+        if self.resize is not None and ret and frame is not None:
             frame = cv2.resize(frame, None, fx=self.resize, fy=self.resize,
-                            interpolation=cv2.INTER_AREA)
+                               interpolation=cv2.INTER_AREA)
         self.frame_count += 1
         if ret and frame is not None:
             frame = frame.copy()
@@ -122,11 +114,11 @@ class Cap:
 
 class MultiThreadingTracker:
     def __init__(self):
-        self.cap = None
-        self.od  = None
-        self.ot  = None  # artık thread değil, sadece tracker instance
+        self.cap                     = None
+        self.od                      = None
+        self.ot                      = None
         self.current_frame_detection = None
-        self.resize = None
+        self.resize                  = None
 
     def start_cap_thread(self, cam, resize=None, reconnect_delay_sec: int = 5,
                          on_disconnect=None, on_reconnect=None):
@@ -139,14 +131,16 @@ class MultiThreadingTracker:
         self.cap.start_separate_thread()
 
     def start_detection_thread(self, weights_path, device=0, batch_size=1, img_size=416,
-                               filter_classes: list = None, detection_fps: float = None):
+                               filter_classes: list = None, detection_fps: float = None,
+                               detection_client=None):  # ← YENİ parametre
         self.od = ObjectDetection(
             weights_path,
-            batch_size=batch_size,
-            img_size=img_size,
-            device=device,
-            filter_classes=filter_classes,
-            detection_fps=detection_fps,
+            batch_size       = batch_size,
+            img_size         = img_size,
+            device           = device,
+            filter_classes   = filter_classes,
+            detection_fps    = detection_fps,
+            detection_client = detection_client,  # ← geçir
         )
         self.od.start_thread()
 
@@ -157,18 +151,13 @@ class MultiThreadingTracker:
         return self.od.colors[int(class_id)]
 
     def start_tracking_thread(self, tracker="ocsort", max_age=30, min_hits=3, iou_threshold=0.3):
-        """
-        Tracker'ı oluştur ve detection thread'ine ver.
-        Ayrı bir thread AÇILMAZ — detection thread içinde çalışır.
-        """
         mot = MultiObjectTracking()
         tracker_instance = mot.ocsort(
-            max_age=max_age,
-            min_hits=min_hits,
-            iou_threshold=iou_threshold,
+            max_age       = max_age,
+            min_hits      = min_hits,
+            iou_threshold = iou_threshold,
         )
         self.ot = tracker_instance
-        # Detection thread'ine tracker'ı ver
         if self.od is not None:
             self.od.set_tracker(tracker_instance)
         print(f"Tracker: ocsort (max_age={max_age}, min_hits={min_hits}, "
@@ -184,7 +173,6 @@ class MultiThreadingTracker:
             return SharedMemory.cap_buffer.get()
 
         elif self.cap is not None and self.od is not None and self.ot is None:
-            # Detection only (no tracker)
             if SharedMemory.current_batch_buffer.empty():
                 while SharedMemory.detection_buffer.empty():
                     time.sleep(0.001)
@@ -193,10 +181,9 @@ class MultiThreadingTracker:
                     SharedMemory.current_batch_buffer.put([ret, frame, r_bbox, r_class_id, r_score])
 
         elif self.cap is not None and self.od is not None and self.ot is not None:
-            # Detection + Tracking (single thread)
             if SharedMemory.tracking_buffer.empty():
-                wait_start = time.time()
-                absolute_start = time.time()  # hiç sıfırlanmaz
+                wait_start     = time.time()
+                absolute_start = time.time()
                 while SharedMemory.tracking_buffer.empty():
                     time.sleep(0.001)
                     cap_thread_alive = (self.cap.thread is not None and
@@ -212,7 +199,6 @@ class MultiThreadingTracker:
                         return False, None
                     if cap_thread_alive and od_thread_alive:
                         wait_start = time.time()
-                    # absolute_start sıfırlanmaz — gerçek timeout
                     if time.time() - absolute_start > 30:
                         print("WARNING: tracking_buffer timeout, resetting...", flush=True)
                         return False, None
@@ -228,7 +214,6 @@ class MultiThreadingTracker:
             return self.current_frame_detection[0], self.current_frame_detection[1]
 
         return False, None
-
 
     def get_detection(self):
         if self.od is None:

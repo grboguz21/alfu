@@ -8,9 +8,10 @@ import gc
 from threading import Thread
 from datetime import datetime
 from pathlib import Path
-
+# import subprocess
+# subprocess.run(["sudo", "nvidia-smi", "--gpu-reset"], capture_output=True)
 # NVIDIA CUDA Kilitlenme Koruma Değişkenleri
-os.environ["CUDA_MODULE_LOADING"] = "EAGER"
+os.environ["CUDA_MODULE_LOADING"] = "LAZY"
 os.environ["PYTHONUNBUFFERED"] = "1"
 
 LOG_DIR = Path("logs")

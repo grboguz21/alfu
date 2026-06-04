@@ -17,28 +17,40 @@ random.seed(0)
 
 
 class ObjectDetection:
-    def __init__(self, weights_path, batch_size=32, img_size=640, device=0,
+    def __init__(self, weights_path, batch_size=32, img_size=416, device=0,
                  filter_classes: list = None, detection_fps: float = None,
-                 tracker=None):
+                 tracker=None, detection_client=None):
         print("Object Detection: Loading YOLO model")
-        self.weights_path = weights_path
-        self.colors = self.random_colors(81)
-        self.img_size = img_size
-        self.batch_size = batch_size
-        self.model = YOLO(self.weights_path, task="detect")
-        self.classes = self.model.names
-        self.device = device
-        self.filter_classes = filter_classes
-        self.detection_fps = detection_fps
+        self.weights_path     = weights_path
+        self.colors           = self.random_colors(81)
+        self.img_size         = img_size
+        self.batch_size       = batch_size
+        self.device           = device
+        self.filter_classes   = filter_classes
+        self.detection_fps    = detection_fps
         self.processed_frames_count = 0
-        self.thread = None
-        self._stop_requested = False
-        self._tracker = tracker
+        self.thread           = None
+        self._stop_requested  = False
+        self._tracker         = tracker
+        self._client          = detection_client  # ← DetectionService client
+
+        if detection_client is not None:
+            # Merkezi servis modu — model yüklenmez
+            self.model   = None
+            self.classes = {}
+            print("Object Detection: Merkezi DetectionService kullanılıyor")
+        else:
+            # Klasik mod — model bu process'te yüklenir
+            self.model   = YOLO(self.weights_path, task="detect")
+            self.classes = self.model.names
+            print("Object Detection: Model yüklendi")
 
     def set_tracker(self, tracker):
         self._tracker = tracker
 
     def _reload_model(self):
+        if self._client is not None:
+            return True  # servis modunu reload etmeye gerek yok
         print("OD: CUDA error detected, reloading model...", flush=True)
         try:
             torch.cuda.empty_cache()
@@ -47,7 +59,7 @@ class ObjectDetection:
             return True
         except Exception as reload_err:
             print(f"OD: Model reload failed: {reload_err}", flush=True)
-            return False  # ← False döndür
+            return False
 
     def start_thread(self):
         print("Object Detection: Starting Detection Thread")
@@ -58,11 +70,14 @@ class ObjectDetection:
         print("Object Detection: Detection Thread Started")
 
     def process_image(self):
-        print("Object Detection: Warm up model")
-        self.detect_batch([np.zeros((self.img_size, self.img_size, 3), dtype=np.uint8) for _ in range(self.batch_size)])
+        if self._client is None:
+            # Klasik mod warm-up
+            print("Object Detection: Warm up model")
+            self.detect_batch([np.zeros((self.img_size, self.img_size, 3), dtype=np.uint8)
+                               for _ in range(self.batch_size)])
         print("Object Detection: Started Processing Frames")
 
-        _min_interval = (1.0 / self.detection_fps) if self.detection_fps else 0.0
+        _min_interval  = (1.0 / self.detection_fps) if self.detection_fps else 0.0
         _last_detect_t = 0.0
 
         if self.detection_fps:
@@ -77,7 +92,7 @@ class ObjectDetection:
                     continue
 
             if SharedMemory.cap_buffer.qsize() > 0:
-                rets = []
+                rets   = []
                 frames = []
                 frame_indexes = []
 
@@ -93,18 +108,20 @@ class ObjectDetection:
                                 frame_indexes = list(range(len(rets)))
 
                             try:
-                                r_bboxes, r_class_ids, r_scores = self.detect_batch(frames)
+                                r_bboxes, r_class_ids, r_scores = self._detect(frames)
                             except Exception as e:
                                 print(f"OD: Detection error in EOS path (skipped): {e}", flush=True)
                                 if "CUDA" in str(e):
                                     self._reload_model()
-                                r_bboxes, r_class_ids, r_scores = [], [], []
+                                r_bboxes    = [np.empty((0,4),dtype=int)]  * len(rets)
+                                r_class_ids = [np.empty((0,),dtype=int)]   * len(rets)
+                                r_scores    = [np.empty((0,),dtype=float)] * len(rets)
 
                             if len(frame_indexes) > 0:
-                                real_count = len(frame_indexes)
-                                r_bboxes = r_bboxes[:real_count]
+                                real_count  = len(frame_indexes)
+                                r_bboxes    = r_bboxes[:real_count]
                                 r_class_ids = r_class_ids[:real_count]
-                                r_scores = r_scores[:real_count]
+                                r_scores    = r_scores[:real_count]
 
                             self._run_tracker_and_put(
                                 rets, frames[:len(rets)], r_bboxes, r_class_ids, r_scores, eos=False
@@ -124,30 +141,30 @@ class ObjectDetection:
                 if len(frames) > 0:
                     frame_indexes = []
                     if len(frames) < self.batch_size:
-                        frame_indexes = list(range(len(frames)))
+                        frame_indexes  = list(range(len(frames)))
                         padding_needed = self.batch_size - len(frames)
-                        last_frame = frames[-1].copy()
+                        last_frame     = frames[-1].copy()
                         for _ in range(padding_needed):
                             frames.append(last_frame.copy())
 
                     try:
-                        r_bboxes, r_class_ids, r_scores = self.detect_batch(frames)
+                        r_bboxes, r_class_ids, r_scores = self._detect(frames)
                     except Exception as e:
                         print(f"OD: Detection error (frame skipped): {e}", flush=True)
                         if "CUDA" in str(e):
                             success = self._reload_model()
                             if not success:
                                 print("OD: Cannot recover, stopping detection thread.", flush=True)
-                                self._stop_requested = True  # ← thread durur
+                                self._stop_requested = True
                                 return
                         time.sleep(0.001)
                         continue
 
                     if len(frame_indexes) > 0:
-                        real_count = len(frame_indexes)
-                        r_bboxes = r_bboxes[:real_count]
+                        real_count  = len(frame_indexes)
+                        r_bboxes    = r_bboxes[:real_count]
                         r_class_ids = r_class_ids[:real_count]
-                        r_scores = r_scores[:real_count]
+                        r_scores    = r_scores[:real_count]
 
                     self._run_tracker_and_put(
                         rets, frames[:len(rets)], r_bboxes, r_class_ids, r_scores, eos=False
@@ -157,6 +174,46 @@ class ObjectDetection:
                     _last_detect_t = time.time()
 
             time.sleep(0.001)
+
+    # ------------------------------------------------------------------
+    # _detect — client varsa servise sor, yoksa local batch
+    # ------------------------------------------------------------------
+
+    def _detect(self, frames):
+        if self._client is not None:
+            return self._detect_via_service(frames)
+        return self.detect_batch(frames)
+
+    def _detect_via_service(self, frames):
+        """Her frame'i servise gönder, sonuçları topla."""
+        real_count = len(frames)
+
+        for frame in frames:
+            self._client.push_frame(frame)
+
+        # Her frame için ayrı sonuç bekle — servis batch'i bölebilir
+        # Basit yaklaşım: tek bir toplu sonuç bekle
+        result = None
+        for _ in range(200):  # max 2sn bekle
+            result = self._client.get_result()
+            if result is not None:
+                break
+            time.sleep(0.01)
+
+        if result is None:
+            empty_b = [np.empty((0, 4), dtype=int)]   * real_count
+            empty_c = [np.empty((0,),   dtype=int)]   * real_count
+            empty_s = [np.empty((0,),   dtype=float)] * real_count
+            return empty_b, empty_c, empty_s
+
+        bboxes, class_ids, scores = result
+        # Tüm frame'lere aynı sonucu ver (servis en son frame'i işledi)
+        r_bboxes    = [bboxes]    * real_count
+        r_class_ids = [class_ids] * real_count
+        r_scores    = [scores]    * real_count
+        return r_bboxes, r_class_ids, r_scores
+
+    # ------------------------------------------------------------------
 
     def _run_tracker_and_put(self, rets, frames, r_bboxes, r_class_ids, r_scores, eos=False):
         from engine.shared_memory import TRACKING_BUFFER_SIZE
@@ -207,32 +264,33 @@ class ObjectDetection:
         random.shuffle(colors)
         return colors
 
-    def detect_batch(self, frames, imgsz=416, conf=0.25, nms=True, classes=None, device=None):
+    def detect_batch(self, frames, imgsz=None, conf=0.25, nms=True, classes=None, device=None):
+        if self.model is None:
+            n = len(frames)
+            return ([np.empty((0,4),dtype=int)]  * n,
+                    [np.empty((0,),dtype=int)]   * n,
+                    [np.empty((0,),dtype=float)] * n)
+        imgsz          = imgsz if imgsz is not None else self.img_size
         filter_classes = classes if classes else self.filter_classes
-        device = device if device else self.device
+        device         = device if device else self.device
         with GPU_LOCK:
             results = self.model.predict(
-                source=frames,
-                save=False,
-                save_txt=False,
-                imgsz=imgsz,
-                conf=conf,
-                nms=True,
-                classes=filter_classes,
-                device=device,
-                half=False,
-                verbose=False,
+                source   = frames,
+                save     = False,
+                save_txt = False,
+                imgsz    = imgsz,
+                conf     = conf,
+                nms      = nms,
+                classes  = filter_classes,
+                device   = device,
+                half     = True,
+                verbose  = False,
             )
-        r_bboxes = []
-        r_class_ids = []
-        r_scores = []
+        r_bboxes, r_class_ids, r_scores = [], [], []
         for result in results:
-            bboxes = np.array(result.boxes.xyxy.cpu(), dtype="int")
-            r_bboxes.append(bboxes)
-            class_ids = np.array(result.boxes.cls.cpu(), dtype="int")
-            r_class_ids.append(class_ids)
-            scores = np.array(result.boxes.conf.cpu(), dtype="float").round(2)
-            r_scores.append(scores)
+            r_bboxes.append(np.array(result.boxes.xyxy.cpu(), dtype="int"))
+            r_class_ids.append(np.array(result.boxes.cls.cpu(), dtype="int"))
+            r_scores.append(np.array(result.boxes.conf.cpu(), dtype="float").round(2))
         return r_bboxes, r_class_ids, r_scores
 
     def release(self):
@@ -245,22 +303,22 @@ class ObjectDetection:
 
     def detect(self, frame, imgsz=416, conf=0.25, nms=True, classes=None, device=None):
         filter_classes = classes if classes else None
-        device = device if device else self.device
+        device         = device if device else self.device
         with GPU_LOCK:
             results = self.model.predict(
-                source=frame,
-                save=False,
-                save_txt=False,
-                imgsz=imgsz,
-                conf=conf,
-                nms=nms,
-                classes=filter_classes,
-                half=False,
-                device=device,
-                verbose=False,
+                source   = frame,
+                save     = False,
+                save_txt = False,
+                imgsz    = imgsz,
+                conf     = conf,
+                nms      = nms,
+                classes  = filter_classes,
+                half     = True,
+                device   = device,
+                verbose  = False,
             )
-        result = results[0]
-        bboxes = np.array(result.boxes.xyxy.cpu(), dtype="int")
+        result    = results[0]
+        bboxes    = np.array(result.boxes.xyxy.cpu(), dtype="int")
         class_ids = np.array(result.boxes.cls.cpu(), dtype="int")
-        scores = np.array(result.boxes.conf.cpu(), dtype="float").round(2)
+        scores    = np.array(result.boxes.conf.cpu(), dtype="float").round(2)
         return bboxes, class_ids, scores
