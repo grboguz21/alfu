@@ -14,8 +14,8 @@
             "module_id": "85dbc19f-a439-4da3-96e1-74e190c19898",
             "interval_seconds": 60,
             "fields": [
-                "Kasa 1 Active Minutes",
-                "Kasa 2 Active Minutes"
+                "Payment Points 1 Active Minutes",
+                "Payment Points 2 Active Minutes"
             ]
         }
     ],
@@ -41,7 +41,7 @@
             "show_panel": true,
             "kasalar": [
                 {
-                    "id": "Kasa 1",
+                    "id": "Payment Points 1",
                     "coords": [
                         [
                             16,
@@ -62,7 +62,7 @@
                     ]
                 },
                 {
-                    "id": "Kasa 2",
+                    "id": "Payment Points 2",
                     "coords": [
                         [
                             1532,
