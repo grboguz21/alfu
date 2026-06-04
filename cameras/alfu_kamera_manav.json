@@ -2,16 +2,16 @@
     "enabled": true,
     "minio_folder": "alfu_kamera_manav",
     "engine_path": "models/yolo26l.pt",
-    "camera_id": "92325356-c61d-4097-b34f-88e16fb42fe9",
-    "module_id": "85dbc19f-a439-4da3-96e1-74e190c19898",
-    "rtsp_url": "rtsp://YoUr46tdf:i75fgUyhg487Y@62.31.126.224:554/Streaming/Channels/2301",
+    "camera_id": "d4d0083f-f948-4da4-8b32-90e1e8075ae6",
+    "module_id": "a4c3df86-cb39-4da3-896c-b159fca3163d",
+    "rtsp_url": "rtsp://YoUr46tdf:i75fgUyhg487Y@62.31.126.224:554/Streaming/Channels/201",
     "gst_framerate": 10,
     "frame_resize": 0.3,
     "video_path": "",
     "reports": [
         {
             "name": "bolge_vakit_raporu",
-            "module_id": "85dbc19f-a439-4da3-96e1-74e190c19898",
+            "module_id": "a4c3df86-cb39-4da3-896c-b159fca3163d",
             "interval_seconds": 60,
             "fields": [
                 "Zone 1 Dwell Time Sec"
