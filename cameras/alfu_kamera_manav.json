@@ -14,7 +14,7 @@
             "module_id": "a4c3df86-cb39-4da3-896c-b159fca3163d",
             "interval_seconds": 60,
             "fields": [
-                "Zone 1 Dwell Time Sec"
+                "Zone 1 Dwell Time Minutes"
             ]
         }
     ],

@@ -1,0 +1,86 @@
+{
+    "enabled": true,
+    "minio_folder": "alfu_kamera_kasap",
+    "engine_path": "models/yolo26l.engine",
+    "camera_id": "431c0433-f54a-4f12-af68-fe5e77572cef",
+    "module_id": "a7ff3e8b-b194-47e8-924d-a222ba9aea34",
+    "rtsp_url": "",
+    "gst_framerate": 5,
+    "frame_resize": 0.3,
+    "video_path": "",
+    "reports": [
+        {
+            "name": "bolge_vakit_raporu",
+            "module_id": "a7ff3e8b-b194-47e8-924d-a222ba9aea34",
+            "interval_seconds": 60,
+            "fields": [
+                "Zone 1 Dwell Time Minutes"
+            ]
+        }
+    ],
+    "alarms": [
+        {
+            "name": "lens_closed_alarm",
+            "module_id": "30a332f5-0df9-45a2-81d7-ba274d78b2e7",
+            "cooldown_seconds": 10,
+            "trigger_on": "should_alert",
+            "with_snapshot": true,
+            "data": {
+                "Status": "Camera Lens Closed"
+            }
+        }
+    ],
+    "modules": [
+        {
+            "type": "bolge_vakit_analizi",
+            "name": "bolge_vakit_kasap",
+            "dwell_threshold": 6.0,
+            "reference": "foot",
+            "scale": 0.3,
+            "show_panel": true,
+            "zones": [
+                {
+                    "name": "Zone 1",
+                    "points": [],
+                    "color": [0, 255, 0]
+                }
+            ]
+        },
+        {
+            "type": "face_blurring",
+            "name": "yuz_blur_kasap",
+            "model_path": "models/yolov8l_100e.engine",
+            "confidence": 0.45,
+            "process_every_n": 2,
+            "show_panel": false
+        },
+        {
+            "type": "lens_detector",
+            "name": "lens_kasap",
+            "cooldown": 999999,
+            "blur_threshold": 100.0,
+            "resize_factor": 10,
+            "night_threshold": 30.0,
+            "baseline_window": 50,
+            "show_panel": true
+        }
+    ],
+    "reconnect_delay_sec": 5,
+    "stream_alarm": {
+        "enabled": true,
+        "cooldown_seconds": 0,
+        "module_id": "0b86ed27-63ed-41e5-a290-a7dd56d61c7f",
+        "data": {
+            "Status": "Camera Connection Lost"
+        }
+    },
+    "camera_move_alarm": {
+        "enabled": true,
+        "show_panel": true,
+        "cooldown_seconds": 5,
+        "rois": [],
+        "data": {
+            "Status": "Camera Angle Changed"
+        }
+    }
+}

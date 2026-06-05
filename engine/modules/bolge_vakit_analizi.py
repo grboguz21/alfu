@@ -23,8 +23,7 @@ Config example:
 
 get_data() output:
     {
-        "Produce Section Dwell Time Sec": 125.5,
-        "Produce Section Visitor Count":  3
+        "Produce Section Dwell Time Minutes": 2.1
     }
 """
 
@@ -247,8 +246,7 @@ class BolgeVakitAnaliziModule(BaseModule):
             key: val
             for r in self._regions
             for key, val in {
-                f"{r['name']} Dwell Time Sec": round(self._zone_dwell.get(r["name"], 0.0), 1),
-                f"{r['name']} Visitor Count":  self._zone_visitors.get(r["name"], 0),
+                f"{r['name']} Dwell Time Minutes": round(self._zone_dwell.get(r["name"], 0.0) / 60.0, 1),
             }.items()
         }
 
