@@ -1,5 +1,5 @@
 {
-    "enabled": true,
+    "enabled": false,
     "minio_folder": "alfu_kamera_giris",
     "engine_path": "models/yolo26l.engine",
     "camera_id": "919cfac9-1c80-47a5-a134-f242fe04aedf",
