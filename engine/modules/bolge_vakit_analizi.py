@@ -66,8 +66,10 @@ class BolgeVakitAnaliziModule(BaseModule):
         for z in zones:
             pts = (np.array(z.get("points", []), np.float32) * scale).astype(np.int32)
             pts = pts.reshape((-1, 1, 2))
+            name = z.get("name", "Zone")
             self._regions.append({
-                "name":  z.get("name", "Zone"),
+                "name":  name,
+                "key":   z.get("key", f"{name} Dwell Time Minutes"),
                 "color": tuple(z.get("color", [0, 0, 255])),
                 "pts":   pts,
             })
@@ -243,11 +245,8 @@ class BolgeVakitAnaliziModule(BaseModule):
 
     def get_data(self) -> dict:
         return {
-            key: val
+            r["key"]: round(self._zone_dwell.get(r["name"], 0.0) / 60.0, 1)
             for r in self._regions
-            for key, val in {
-                f"{r['name']} Dwell Time Minutes": round(self._zone_dwell.get(r["name"], 0.0) / 60.0, 1),
-            }.items()
         }
 
     # ==================== DRAW ====================
