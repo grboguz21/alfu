@@ -3,7 +3,7 @@
     "minio_folder": "alfu_kamera_kasap",
     "engine_path": "models/yolo26l.engine",
     "camera_id": "431c0433-f54a-4f12-af68-fe5e77572cef",
-    "module_id": "a7ff3e8b-b194-47e8-924d-a222ba9aea34",
+    "module_id": "a4c3df86-cb39-4da3-896c-b159fca3163d",
     "rtsp_url": "rtsp://YoUr46tdf:i75fgUyhg487Y@62.31.126.224:554/Streaming/Channels/1601",
     "gst_framerate": 5,
     "frame_resize": 0.3,
@@ -11,10 +11,10 @@
     "reports": [
         {
             "name": "bolge_vakit_raporu",
-            "module_id": "a7ff3e8b-b194-47e8-924d-a222ba9aea34",
+            "module_id": "a4c3df86-cb39-4da3-896c-b159fca3163d",
             "interval_seconds": 60,
             "fields": [
-                "Zone 1 Dwell Time Minutes"
+                "Zone 2 Dwell Time Minutes"
             ]
         }
     ],
@@ -40,7 +40,7 @@
             "show_panel": true,
             "zones": [
                 {
-                    "name": "Zone 1",
+                    "name": "Zone 2",
                     "points": [
                         [
                             0,
