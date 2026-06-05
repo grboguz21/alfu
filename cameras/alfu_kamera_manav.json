@@ -163,7 +163,32 @@
         "enabled": true,
         "show_panel": true,
         "cooldown_seconds": 5,
-        "rois": [],
+        "rois": [
+            [
+                114,
+                628
+            ],
+            [
+                58,
+                275
+            ],
+            [
+                83,
+                29
+            ],
+            [
+                536,
+                0
+            ],
+            [
+                1220,
+                445
+            ],
+            [
+                1212,
+                665
+            ]
+        ],
         "data": {
             "Status": "Camera Angle Changed"
         }

@@ -4,7 +4,7 @@
     "engine_path": "models/yolo26l.engine",
     "camera_id": "431c0433-f54a-4f12-af68-fe5e77572cef",
     "module_id": "a7ff3e8b-b194-47e8-924d-a222ba9aea34",
-    "rtsp_url": "",
+    "rtsp_url": "rtsp://YoUr46tdf:i75fgUyhg487Y@62.31.126.224:554/Streaming/Channels/1601",
     "gst_framerate": 5,
     "frame_resize": 0.3,
     "video_path": "",
@@ -41,8 +41,53 @@
             "zones": [
                 {
                     "name": "Zone 1",
-                    "points": [],
-                    "color": [0, 255, 0]
+                    "points": [
+                        [
+                            0,
+                            1435
+                        ],
+                        [
+                            725,
+                            1437
+                        ],
+                        [
+                            967,
+                            800
+                        ],
+                        [
+                            1097,
+                            477
+                        ],
+                        [
+                            1157,
+                            345
+                        ],
+                        [
+                            1187,
+                            275
+                        ],
+                        [
+                            1090,
+                            370
+                        ],
+                        [
+                            987,
+                            385
+                        ],
+                        [
+                            837,
+                            622
+                        ],
+                        [
+                            587,
+                            982
+                        ]
+                    ],
+                    "color": [
+                        0,
+                        255,
+                        0
+                    ]
                 }
             ]
         },
@@ -78,7 +123,32 @@
         "enabled": true,
         "show_panel": true,
         "cooldown_seconds": 5,
-        "rois": [],
+        "rois": [
+            [
+                114,
+                628
+            ],
+            [
+                58,
+                275
+            ],
+            [
+                83,
+                29
+            ],
+            [
+                536,
+                0
+            ],
+            [
+                1220,
+                445
+            ],
+            [
+                1212,
+                665
+            ]
+        ],
         "data": {
             "Status": "Camera Angle Changed"
         }
