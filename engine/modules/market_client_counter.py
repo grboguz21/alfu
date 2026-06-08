@@ -323,37 +323,17 @@ class MarketClientCounterModule(BaseModule):
         return frame
 
     def _draw_panel(self, frame):
-        st = self._last_status
+        st  = self._last_status
         pad = 10
-        cv2.rectangle(frame, (pad, pad), (pad + 220, pad + 88), (0, 0, 0), -1)
+        cv2.rectangle(frame, (pad, pad), (pad + 200, pad + 52), (0, 140, 255), -1)
         cv2.putText(
             frame,
             f"IN  {st['count_in']:>6}",
-            (pad + 8, pad + 32),
+            (pad + 8, pad + 36),
             cv2.FONT_HERSHEY_SIMPLEX,
-            0.8,
-            COLOR_IN,
+            0.9,
+            (255, 255, 255),
             2,
-            cv2.LINE_AA,
-        )
-        cv2.putText(
-            frame,
-            f"OUT {st['count_out']:>6}",
-            (pad + 8, pad + 68),
-            cv2.FONT_HERSHEY_SIMPLEX,
-            0.8,
-            COLOR_OUT,
-            2,
-            cv2.LINE_AA,
-        )
-        cv2.putText(
-            frame,
-            "count on track lost",
-            (pad + 8, pad + 84),
-            cv2.FONT_HERSHEY_SIMPLEX,
-            0.4,
-            (160, 160, 160),
-            1,
             cv2.LINE_AA,
         )
         return frame
