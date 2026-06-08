@@ -387,35 +387,8 @@ class KasaTakipModule(BaseModule):
 
         s = self._last_status
 
-        # Alan çerçeveleri — orijinal koordinatlar, resize yok
-        cv2.polylines(frame, [self._orta_coords],  True, COLOR_CUSTOMER_AREA, 4)
-        cv2.polylines(frame, [self._kasa1_coords], True, COLOR_LANE,          4)
-        cv2.polylines(frame, [self._kasa2_coords], True, COLOR_LANE,          4)
-
-        # Alan etiketleri
-        self._draw_area_label(frame, self._orta_coords,  "CUSTOMER AREA", COLOR_CUSTOMER_AREA,
-                              custom_point=(610, 80))
-        self._draw_area_label(frame, self._kasa1_coords, "LANE_1",        COLOR_LANE)
-        self._draw_area_label(frame, self._kasa2_coords, "LANE_2",        COLOR_LANE)
-
-        # Müşteri noktaları
-        for (center, confirmed) in s["customer_dots"]:
-            color = COLOR_DOT_CONFIRMED if confirmed else COLOR_DOT_PENDING
-            cv2.circle(frame, center, 12, color,       -1)
-            cv2.circle(frame, center, 12, (0, 0, 0),    2)
-
-        # Kasiyer noktaları
-        for center in s["cashier_dots"]:
-            cv2.circle(frame, center, 12, COLOR_DOT_CASHIER, -1)
-            cv2.circle(frame, center, 12, (0, 0, 0),          2)
-
-        # Geri sayım baloncukları
-        if s["remaining1"] is not None:
-            self._draw_countdown(frame, self._kasa1_coords,
-                                 s["remaining1"], self._cashier_alarm_delay)
-        if s["remaining2"] is not None:
-            self._draw_countdown(frame, self._kasa2_coords,
-                                 s["remaining2"], self._cashier_alarm_delay)
+        if len(self._orta_coords) >= 3:
+            cv2.polylines(frame, [self._orta_coords], True, COLOR_CUSTOMER_AREA, 4)
 
         if self.show_panel:
             frame = self._draw_panel(frame, s)
