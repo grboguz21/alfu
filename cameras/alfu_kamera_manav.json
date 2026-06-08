@@ -5,7 +5,7 @@
     "camera_id": "d4d0083f-f948-4da4-8b32-90e1e8075ae6",
     "module_id": "a4c3df86-cb39-4da3-896c-b159fca3163d",
     "rtsp_url": "rtsp://YoUr46tdf:i75fgUyhg487Y@62.31.126.224:554/Streaming/Channels/201",
-    "gst_framerate": 5,
+    "gst_framerate": 20,
     "frame_resize": 0.3,
     "video_path": "",
     "reports": [
