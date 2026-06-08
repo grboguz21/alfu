@@ -4,6 +4,7 @@ from .market_client_counter    import MarketClientCounterModule
 from .cashier_working_hours    import KasiyerSuresiModule
 from .bolge_vakit_analizi      import BolgeVakitAnaliziModule
 from .office_hours             import WorkHoursModule
+from .kasa_yogunluk            import KasaTakipModule
 
 def _scale_pt(pt, ratio: float):
     return [int(pt[0] * ratio), int(pt[1] * ratio)]
@@ -45,6 +46,7 @@ MODULE_REGISTRY = {
     "kasiyer_suresi":          KasiyerSuresiModule,
     "bolge_vakit_analizi":     BolgeVakitAnaliziModule,
     "work_hours":              WorkHoursModule,
+    "kasa_takip":              KasaTakipModule,
 }
 
 

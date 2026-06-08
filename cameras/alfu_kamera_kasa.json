@@ -1,7 +1,7 @@
 {
     "enabled": true,
     "minio_folder": "alfu_kamera_kasa",
-    "engine_path": "models/yolo26l.engine",
+    "engine_path": "models/yolo26l.pt",
     "camera_id": "92325356-c61d-4097-b34f-88e16fb42fe9",
     "module_id": "85dbc19f-a439-4da3-96e1-74e190c19898",
     "rtsp_url": "rtsp://YoUr46tdf:i75fgUyhg487Y@62.31.126.224:554/Streaming/Channels/2301",
@@ -20,6 +20,16 @@
         }
     ],
     "alarms": [
+        {
+            "name": "no_cashier_alarm",
+            "module_id": "f6b03fb9-29b9-420b-9b6a-743a06d0c84a",
+            "cooldown_seconds": 60,
+            "trigger_on": "no_cashier_alert",
+            "with_snapshot": true,
+            "data": {
+                "Status": "No Cashier on the Payment Points"
+            }
+        },
         {
             "name": "lens_closed_alarm",
             "module_id": "30a332f5-0df9-45a2-81d7-ba274d78b2e7",
@@ -85,9 +95,87 @@
             ]
         },
         {
+            "type": "kasa_takip",
+            "name": "kasa_takip_kasa",
+            "model_path": "models/yolo26l.pt",
+            "orta_coords": [
+                [
+                    194,
+                    9
+                ],
+                [
+                    123,
+                    306
+                ],
+                [
+                    38,
+                    308
+                ],
+                [
+                    14,
+                    422
+                ],
+                [
+                    433,
+                    417
+                ],
+                [
+                    377,
+                    3
+                ]
+            ],
+            "kasa1_coords": [
+                [
+                    16,
+                    184
+                ],
+                [
+                    8,
+                    610
+                ],
+                [
+                    242,
+                    572
+                ],
+                [
+                    410,
+                    256
+                ]
+            ],
+            "kasa2_coords": [
+                [
+                    1532,
+                    570
+                ],
+                [
+                    2076,
+                    482
+                ],
+                [
+                    1894,
+                    48
+                ],
+                [
+                    1454,
+                    88
+                ]
+            ],
+            "entry_wait_time": 3.0,
+            "id_memory_duration": 4.0,
+            "table_seen_threshold": 1.2,
+            "cashier_empty_wait": 4.0,
+            "cashier_alarm_delay": 15.0,
+            "alarm_min_customers": 3,
+            "extra_lane_threshold": 2,
+            "extra_lane_confirm": 2.0,
+            "customer_conf": 0.50,
+            "cashier_conf": 0.60,
+            "show_panel": true
+        },
+        {
             "type": "face_blurring",
             "name": "yuz_blur_cam2",
-            "model_path": "models/yolov8l_100e.engine",
+            "model_path": "models/yolov8l_100e.pt",
             "confidence": 0.45,
             "process_every_n": 2,
             "show_panel": false
