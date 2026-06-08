@@ -1,5 +1,5 @@
 {
-    "enabled": false,
+    "enabled": true,
     "minio_folder": "alfu_kamera_kasa",
     "engine_path": "models/yolo26l.engine",
     "camera_id": "92325356-c61d-4097-b34f-88e16fb42fe9",
