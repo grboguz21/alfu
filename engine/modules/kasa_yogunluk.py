@@ -468,15 +468,27 @@ class KasaTakipModule(BaseModule):
         cv2.putText(frame, txt, (cx - tw // 2, cy + th // 2), font, fs, (255, 255, 255), 2)
 
     def _draw_panel(self, frame, s):
-        h, w  = frame.shape[:2]
-        rx1, ry1, rx2, ry2 = w - 600, 20, w - 20, 200
-        cv2.rectangle(frame, (rx1, ry1), (rx2, ry2), COLOR_PANEL_BG, -1)
-        cv2.putText(frame, f"Customer Area: {s['current_red_count']}",
-                    (rx1 + 20, ry1 + 50),  cv2.FONT_HERSHEY_SIMPLEX, 1.2, (255, 255, 255), 3)
-        cv2.putText(frame, f"Lane 1: {'Occupied' if s['kasa1_occupied'] else 'Empty'}",
-                    (rx1 + 20, ry1 + 110), cv2.FONT_HERSHEY_SIMPLEX, 1.2, (255, 255, 255), 3)
-        cv2.putText(frame, f"Lane 2: {'Occupied' if s['kasa2_occupied'] else 'Empty'}",
-                    (rx1 + 20, ry1 + 160), cv2.FONT_HERSHEY_SIMPLEX, 1.2, (255, 255, 255), 3)
+        h, w   = frame.shape[:2]
+        MARGIN = 12
+        STEP   = 24
+        box_h  = 52 + 3 * STEP
+        box_w  = 200
+        px     = w - box_w - MARGIN
+        py     = h - box_h - MARGIN
+
+        cv2.rectangle(frame, (px, py), (px + box_w, py + box_h), COLOR_PANEL_BG, -1)
+        cv2.putText(frame, "CASHIER ALARM",
+                    (px + 7, py + 22),
+                    cv2.FONT_HERSHEY_SIMPLEX, 0.52, (255, 255, 255), 1, cv2.LINE_AA)
+        rows = [
+            f"Customers: {s['current_red_count']}",
+            f"Lane 1: {'Occupied' if s['kasa1_occupied'] else 'Empty'}",
+            f"Lane 2: {'Occupied' if s['kasa2_occupied'] else 'Empty'}",
+        ]
+        for i, row in enumerate(rows):
+            cv2.putText(frame, row,
+                        (px + 7, py + 46 + i * STEP),
+                        cv2.FONT_HERSHEY_SIMPLEX, 0.45, (255, 255, 255), 1, cv2.LINE_AA)
         return frame
 
     def _draw_alarm_banners(self, frame, s):
