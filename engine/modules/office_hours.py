@@ -667,22 +667,25 @@ class WorkHoursModule(BaseModule):
         return frame
 
     def _draw_panel(self, frame):
-        h, w  = frame.shape[:2]
-        n     = len(self._area_states)
-        box_h = 80 + n * 35
-        px    = w - 310
-        py    = 20
+        h, w   = frame.shape[:2]
+        n      = len(self._area_states)
+        MARGIN = 12
+        STEP   = 24
+        box_h  = 52 + n * STEP
+        box_w  = 200
+        px     = w - box_w - MARGIN
+        py     = h - box_h - MARGIN
 
-        cv2.rectangle(frame, (px, py), (w - 20, py + box_h), (0, 140, 255), -1)
+        cv2.rectangle(frame, (px, py), (px + box_w, py + box_h), (0, 140, 255), -1)
         cv2.putText(frame, "WORK HOURS",
-                    (px + 10, py + 35),
-                    cv2.FONT_HERSHEY_SIMPLEX, 0.75, (255, 255, 255), 2, cv2.LINE_AA)
+                    (px + 7, py + 22),
+                    cv2.FONT_HERSHEY_SIMPLEX, 0.52, (255, 255, 255), 1, cv2.LINE_AA)
         for i, state in self._area_states.items():
             time_str = self._fmt_time(state["total_seconds"])
             color    = state.get("_color", (255, 255, 255))
             cv2.putText(frame, f"{state['name']}: {time_str}",
-                        (px + 10, py + 65 + i * 35),
-                        cv2.FONT_HERSHEY_SIMPLEX, 0.65, color, 2, cv2.LINE_AA)
+                        (px + 7, py + 46 + i * STEP),
+                        cv2.FONT_HERSHEY_SIMPLEX, 0.45, color, 1, cv2.LINE_AA)
         return frame
 
     # ==================== SHUTDOWN ====================

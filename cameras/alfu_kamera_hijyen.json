@@ -1,0 +1,170 @@
+{
+    "enabled": true,
+    "minio_folder": "alfu_kamera_hijyen",
+    "engine_path": "models/yolo26l.pt",
+    "camera_id": "bf310676-88ad-4e24-a783-463930837e87",
+    "module_id": "a4c3df86-cb39-4da3-896c-b159fca3163d",
+    "rtsp_url": "rtsp://YoUr46tdf:i75fgUyhg487Y@62.31.126.224:554/Streaming/Channels/401",
+    "gst_framerate": 20,
+    "frame_resize": 0.3,
+    "video_path": "",
+    "reports": [
+        {
+            "name": "bolge_vakit_raporu",
+            "module_id": "a4c3df86-cb39-4da3-896c-b159fca3163d",
+            "interval_seconds": 60,
+            "fields": [
+                "Time Spent in the Hygiene Section"
+            ]
+        }
+    ],
+    "alarms": [
+        {
+            "name": "lens_closed_alarm",
+            "module_id": "30a332f5-0df9-45a2-81d7-ba274d78b2e7",
+            "cooldown_seconds": 10,
+            "trigger_on": "should_alert",
+            "with_snapshot": true,
+            "data": {
+                "Status": "Camera Lens Closed"
+            }
+        }
+    ],
+    "modules": [
+        {
+            "type": "bolge_vakit_analizi",
+            "name": "bolge_vakit_hijyen",
+            "detection_conf": 0.40,
+            "dwell_threshold": 6.0,
+            "reference": "foot",
+            "scale": 0.3,
+            "show_panel": true,
+            "zones": [
+                {
+                    "name": "Zone 5",
+                    "key": "Time Spent in the Hygiene Section",
+                    "points": [
+                        [
+                            0,
+                            1435
+                        ],
+                        [
+                            7,
+                            1030
+                        ],
+                        [
+                            132,
+                            850
+                        ],
+                        [
+                            250,
+                            870
+                        ],
+                        [
+                            680,
+                            415
+                        ],
+                        [
+                            882,
+                            240
+                        ],
+                        [
+                            1002,
+                            145
+                        ],
+                        [
+                            1150,
+                            445
+                        ],
+                        [
+                            1332,
+                            467
+                        ],
+                        [
+                            1342,
+                            130
+                        ],
+                        [
+                            1385,
+                            137
+                        ],
+                        [
+                            1532,
+                            740
+                        ],
+                        [
+                            1472,
+                            1435
+                        ]
+                    ],
+                    "color": [
+                        0,
+                        255,
+                        0
+                    ]
+                }
+            ]
+        },
+        {
+            "type": "face_blurring",
+            "name": "yuz_blur_hijyen",
+            "model_path": "models/yolov8l_100e.pt",
+            "confidence": 0.45,
+            "process_every_n": 2,
+            "show_panel": false
+        },
+        {
+            "type": "lens_detector",
+            "name": "lens_hijyen",
+            "cooldown": 999999,
+            "blur_threshold": 100.0,
+            "resize_factor": 10,
+            "night_threshold": 30.0,
+            "baseline_window": 50,
+            "show_panel": true
+        }
+    ],
+    "reconnect_delay_sec": 5,
+    "stream_alarm": {
+        "enabled": true,
+        "cooldown_seconds": 0,
+        "module_id": "0b86ed27-63ed-41e5-a290-a7dd56d61c7f",
+        "data": {
+            "Status": "Camera Connection Lost"
+        }
+    },
+    "camera_move_alarm": {
+        "enabled": true,
+        "show_panel": true,
+        "cooldown_seconds": 5,
+        "rois": [
+            [
+                114,
+                628
+            ],
+            [
+                58,
+                275
+            ],
+            [
+                83,
+                29
+            ],
+            [
+                536,
+                0
+            ],
+            [
+                1220,
+                445
+            ],
+            [
+                1212,
+                665
+            ]
+        ],
+        "data": {
+            "Status": "Camera Angle Changed"
+        }
+    }
+}
