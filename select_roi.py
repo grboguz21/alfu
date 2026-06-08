@@ -102,7 +102,7 @@ def print_result(frame_shape):
     print("=" * 55 + "\n")
 
 
-def get_rtsp_from_config(camera_name="Kamera-5"):
+def get_rtsp_from_config(camera_name):
     from pathlib import Path
     cameras_dir = Path("cameras")
     all_cams = []
@@ -117,15 +117,17 @@ def get_rtsp_from_config(camera_name="Kamera-5"):
 
     for cam in all_cams:
         if cam.get("minio_folder") == camera_name:
-            return (cam.get("rtsp_url") or
-                    cam.get("gst_pipeline") or
-                    cam.get("video_path"))
+            url = (cam.get("rtsp_url") or
+                   cam.get("gst_pipeline") or
+                   cam.get("video_path"))
+            frame_resize = float(cam.get("frame_resize", 1.0))
+            return url, frame_resize
 
     print(f"Kamera bulunamadi: '{camera_name}'")
     if all_cams:
         names = [c.get("minio_folder", "?") for c in all_cams]
         print(f"Mevcut kameralar: {', '.join(names)}")
-    return None
+    return None, 1.0
 
 
 def main():
@@ -143,6 +145,7 @@ def main():
 
     _mode = args.mode
 
+    frame_resize = 1.0
     source = None
     if args.video:
         source = args.video
@@ -154,14 +157,14 @@ def main():
             from pathlib import Path
             cams = sorted(Path("cameras").glob("*.json")) if Path("cameras").is_dir() else []
             if cams:
-                import json as _json
                 with open(cams[0], encoding="utf-8") as f:
-                    cam_name = _json.load(f).get("minio_folder", "Kamera-5")
+                    cam_name = json.load(f).get("minio_folder", "Kamera-5")
             else:
                 cam_name = "Kamera-5"
-        source = get_rtsp_from_config(cam_name)
+        source, frame_resize = get_rtsp_from_config(cam_name)
         if source:
             print(f"{cam_name} RTSP: {source[:60]}...")
+            print(f"frame_resize: {frame_resize}")
         else:
             print("Kaynak bulunamadi. --video veya --camera belirtin.")
             return
@@ -181,8 +184,13 @@ def main():
         print("Kare okunamadi.")
         return
 
+    # Frame'i pipeline ile aynı boyuta getir
+    if frame_resize != 1.0:
+        frame = cv2.resize(frame, None, fx=frame_resize, fy=frame_resize,
+                           interpolation=cv2.INTER_AREA)
+
     h, w = frame.shape[:2]
-    print(f"Goruntu boyutu: {w}x{h}")
+    print(f"Goruntu boyutu (pipeline): {w}x{h}")
     print(f"Mod: {_mode}")
 
     frame_clean   = frame.copy()
