@@ -374,33 +374,30 @@ class KasiyerSuresiModule(BaseModule):
         return frame
 
     def _draw_panel(self, frame, now: float):
-        panel_w = 195
-        line_h  = 25
-        padding = 10
-        panel_h = padding * 2 + line_h * len(self._kasalar)
+        h, w   = frame.shape[:2]
+        n      = len(self._kasalar)
+        MARGIN = 12
+        STEP   = 24
+        box_h  = 52 + n * STEP
+        box_w  = 200
+        px     = w - box_w - MARGIN
+        py     = h - box_h - MARGIN
 
-        h, w = frame.shape[:2]
-        px1  = w - panel_w - 20
-        py1  = 20
-        px2  = w - 20
-        py2  = py1 + panel_h
-
-        # Semi-transparent background
-        overlay = frame.copy()
-        cv2.rectangle(overlay, (px1, py1), (px2, py2), COLOR_PANEL_BG, -1)
-        cv2.addWeighted(overlay, 0.90, frame, 0.10, 0, frame)
-        cv2.rectangle(frame, (px1, py1), (px2, py2), COLOR_DARK_BORDER, 1, cv2.LINE_AA)
-
+        cv2.rectangle(frame, (px, py), (px + box_w, py + box_h), COLOR_PANEL_BG, -1)
+        cv2.putText(
+            frame, "CASHIER HOURS",
+            (px + 7, py + 22),
+            cv2.FONT_HERSHEY_SIMPLEX, 0.52, COLOR_WHITE, 1, cv2.LINE_AA,
+        )
         for idx, k in enumerate(self._kasalar):
             total = k["total_seconds"]
             if k["is_active"] and k["session_start"]:
                 total += now - k["session_start"]
             label = f"{k['id']}: {self._fmt_time(total)}"
-            y_pos = py1 + padding + line_h * idx + 18
             cv2.putText(
                 frame, label,
-                (px1 + 12, y_pos),
-                cv2.FONT_HERSHEY_SIMPLEX, 0.42, COLOR_WHITE, 1, cv2.LINE_AA,
+                (px + 7, py + 46 + idx * STEP),
+                cv2.FONT_HERSHEY_SIMPLEX, 0.45, COLOR_WHITE, 1, cv2.LINE_AA,
             )
         return frame
 
