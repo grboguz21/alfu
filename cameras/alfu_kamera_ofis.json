@@ -1,12 +1,12 @@
 {
     "enabled": true,
     "minio_folder": "alfu_kamera_ofis",
-    "engine_path": "models/yolo26l.pt",
+    "engine_path": "models/yolo26l-pose.pt",
     "camera_id": "fa73d2d0-7353-4a92-a9e5-722c76f6ee59",
     "module_id": "cf492a28-09b3-4383-a704-12b472c937b1",
     "rtsp_url": "rtsp://YoUr46tdf:i75fgUyhg487Y@62.31.126.224:554/Streaming/Channels/3101",
     "gst_framerate": 10,
-    "frame_resize": 1.0,
+    "frame_resize": 0.3,
     "video_path": "",
     "reports": [
         {
@@ -148,28 +148,28 @@
         "cooldown_seconds": 5,
         "rois": [
             [
-                62,
-                1372
+                31,
+                686
             ],
             [
-                50,
-                994
+                25,
+                497
             ],
             [
-                42,
-                662
+                21,
+                331
             ],
             [
-                64,
-                298
+                32,
+                149
             ],
             [
-                2500,
-                116
+                1250,
+                58
             ],
             [
-                1476,
-                1408
+                738,
+                704
             ]
         ],
         "data": {
