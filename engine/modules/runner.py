@@ -3,6 +3,7 @@ from .lens_detector            import LensDetectorModule
 from .market_client_counter    import MarketClientCounterModule
 from .cashier_working_hours    import KasiyerSuresiModule
 from .bolge_vakit_analizi      import BolgeVakitAnaliziModule
+from .office_hours             import WorkHoursModule
 
 def _scale_pt(pt, ratio: float):
     return [int(pt[0] * ratio), int(pt[1] * ratio)]
@@ -43,6 +44,7 @@ MODULE_REGISTRY = {
     "market_client_counter":   MarketClientCounterModule,
     "kasiyer_suresi":          KasiyerSuresiModule,
     "bolge_vakit_analizi":     BolgeVakitAnaliziModule,
+    "work_hours":              WorkHoursModule,
 }
 
 

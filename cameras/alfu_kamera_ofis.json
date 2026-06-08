@@ -1,0 +1,179 @@
+{
+    "enabled": true,
+    "minio_folder": "alfu_kamera_ofis",
+    "engine_path": "models/yolo26l.pt",
+    "camera_id": "fa73d2d0-7353-4a92-a9e5-722c76f6ee59",
+    "module_id": "cf492a28-09b3-4383-a704-12b472c937b1",
+    "rtsp_url": "rtsp://YoUr46tdf:i75fgUyhg487Y@62.31.126.224:554/Streaming/Channels/3101",
+    "gst_framerate": 5,
+    "frame_resize": 1.0,
+    "video_path": "",
+    "reports": [
+        {
+            "name": "office_hours_raporu",
+            "module_id": "cf492a28-09b3-4383-a704-12b472c937b1",
+            "interval_seconds": 60,
+            "fields": [
+                "Desk 1",
+                "Desk 2",
+                "Desk 3",
+                "Total Minutes"
+            ]
+        }
+    ],
+    "alarms": [
+        {
+            "name": "lens_closed_alarm",
+            "module_id": "30a332f5-0df9-45a2-81d7-ba274d78b2e7",
+            "cooldown_seconds": 10,
+            "trigger_on": "should_alert",
+            "with_snapshot": true,
+            "data": {
+                "Status": "Camera Lens Closed"
+            }
+        }
+    ],
+    "modules": [
+        {
+            "type": "work_hours",
+            "name": "work_hours_ofis",
+            "model_path": "models/yolo26l-pose.pt",
+            "occlusion_tolerance": 5.0,
+            "use_bg_subtractor": true,
+            "min_person_area": 3000,
+            "show_panel": true,
+            "areas": [
+                {
+                    "name": "Desk 1",
+                    "points": [
+                        [
+                            358,
+                            68
+                        ],
+                        [
+                            1362,
+                            180
+                        ],
+                        [
+                            1500,
+                            976
+                        ],
+                        [
+                            294,
+                            928
+                        ]
+                    ],
+                    "threshold": 1.5,
+                    "is_special": true
+                },
+                {
+                    "name": "Desk 2",
+                    "points": [
+                        [
+                            1440,
+                            14
+                        ],
+                        [
+                            1910,
+                            84
+                        ],
+                        [
+                            2024,
+                            528
+                        ],
+                        [
+                            1502,
+                            384
+                        ]
+                    ],
+                    "threshold": 1.5,
+                    "is_special": true
+                },
+                {
+                    "name": "Desk 3",
+                    "points": [
+                        [
+                            2038,
+                            250
+                        ],
+                        [
+                            2216,
+                            658
+                        ],
+                        [
+                            2522,
+                            618
+                        ],
+                        [
+                            2312,
+                            290
+                        ]
+                    ],
+                    "threshold": 1.5,
+                    "is_special": true
+                }
+            ]
+        },
+        {
+            "type": "face_blurring",
+            "name": "yuz_blur_ofis",
+            "model_path": "models/yolov8l_100e.pt",
+            "confidence": 0.45,
+            "process_every_n": 2,
+            "show_panel": false
+        },
+        {
+            "type": "lens_detector",
+            "name": "lens_ofis",
+            "cooldown": 999999,
+            "blur_threshold": 100.0,
+            "resize_factor": 10,
+            "night_threshold": 30.0,
+            "baseline_window": 50,
+            "show_panel": true
+        }
+    ],
+    "reconnect_delay_sec": 5,
+    "stream_alarm": {
+        "enabled": true,
+        "cooldown_seconds": 0,
+        "module_id": "0b86ed27-63ed-41e5-a290-a7dd56d61c7f",
+        "data": {
+            "Status": "Camera Connection Lost"
+        }
+    },
+    "camera_move_alarm": {
+        "enabled": true,
+        "show_panel": true,
+        "cooldown_seconds": 5,
+        "rois": [
+            [
+                62,
+                1372
+            ],
+            [
+                50,
+                994
+            ],
+            [
+                42,
+                662
+            ],
+            [
+                64,
+                298
+            ],
+            [
+                2500,
+                116
+            ],
+            [
+                1476,
+                1408
+            ]
+        ],
+        "data": {
+            "Status": "Camera Angle Changed"
+        }
+    }
+}

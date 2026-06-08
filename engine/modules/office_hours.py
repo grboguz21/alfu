@@ -39,7 +39,7 @@ get_data() output:
     {
         "Desk 1":              120.5,
         "Desk 2":               45.2,
-        "daily_total_minutes": 165.7
+        "Total Minutes":       165.7
     }
 """
 
@@ -638,7 +638,7 @@ class WorkHoursModule(BaseModule):
             mins                = round(state["total_seconds"] / 60, 1)
             data[state["name"]] = mins
             total              += state["total_seconds"]
-        data["daily_total_minutes"] = round(total / 60, 1)
+        data["Total Minutes"] = round(total / 60, 1)
         return data
 
     # ==================== DRAW ====================

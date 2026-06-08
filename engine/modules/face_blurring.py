@@ -106,9 +106,6 @@ class FaceBlurringModule(BaseModule):
             if results and results[0].boxes is not None and len(results[0].boxes):
                 boxes = results[0].boxes.xyxy.cpu().numpy().tolist()
 
-        if len(boxes) != self._current_face_count:
-            print(f"[{self.name}] Yüz tespiti: {len(boxes)} yüz")
-
         if boxes or self._client is not None:
             # Servis modunda her zaman güncelle (boş olsa da)
             self._last_boxes         = boxes
