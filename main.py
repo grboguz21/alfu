@@ -40,7 +40,7 @@ def track_video(video_path       = None,
                 batch_size       = 1,
                 device           = 0,
                 img_size         = 640,
-                max_age          = 30,
+                max_age          = 5,
                 min_hits         = 3,
                 iou_threshold    = 0.3,
                 gst_pipeline     = None,
@@ -431,10 +431,15 @@ if __name__ == "__main__":
 
         # Client'ları servis başlamadan önce oluştur
         for cam in cams:
+            module_conf = next(
+                (m.get("detection_conf") for m in cam.get("modules", [])
+                 if m.get("detection_conf") is not None),
+                None,
+            )
             clients[cam["minio_folder"]] = svc.make_client(
                 cam_id         = cam["minio_folder"],
                 filter_classes = cam.get("detection_classes"),
-                conf           = 0.25,
+                conf           = module_conf or cam.get("detection_conf", 0.25),
             )
 
         # Servisi başlat — model hazır olana kadar bekler (max 60sn)

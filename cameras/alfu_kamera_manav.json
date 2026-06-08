@@ -34,6 +34,7 @@
         {
             "type": "bolge_vakit_analizi",
             "name": "bolge_vakit_manav",
+            "detection_conf": 0.40,
             "dwell_threshold": 6.0,
             "reference": "foot",
             "scale": 0.3,
