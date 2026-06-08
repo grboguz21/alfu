@@ -393,7 +393,6 @@ class KasaTakipModule(BaseModule):
         if self.show_panel:
             frame = self._draw_panel(frame, s)
 
-        frame = self._draw_alarm_banners(frame, s)
         return frame
 
     # ==================== DRAW HELPERS ====================
