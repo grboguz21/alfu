@@ -245,10 +245,6 @@ class DetectionClient:
         self._frame_counter += 1
         if self._frame_counter % process_every_n != 0:
             return
-        h, w = frame.shape[:2]
-        if w > 640 or h > 640:
-            import cv2
-            frame = cv2.resize(frame, (640, 640), interpolation=cv2.INTER_AREA)
         _safe_put(self._req_q,
                   (self.cam_id, frame.copy(), self.filter_classes, self.conf))
 
