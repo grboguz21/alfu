@@ -323,13 +323,18 @@ class MarketClientCounterModule(BaseModule):
         return frame
 
     def _draw_panel(self, frame):
-        st  = self._last_status
-        pad = 10
-        cv2.rectangle(frame, (pad, pad), (pad + 200, pad + 52), (0, 140, 255), -1)
+        st     = self._last_status
+        h, w   = frame.shape[:2]
+        MARGIN = 12
+        box_h  = 52
+        box_w  = 200
+        px     = w - box_w - MARGIN
+        py     = MARGIN
+        cv2.rectangle(frame, (px, py), (px + box_w, py + box_h), (0, 140, 255), -1)
         cv2.putText(
             frame,
             f"IN  {st['count_in']:>6}",
-            (pad + 8, pad + 36),
+            (px + 8, py + 36),
             cv2.FONT_HERSHEY_SIMPLEX,
             0.9,
             (255, 255, 255),

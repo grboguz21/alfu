@@ -7,6 +7,7 @@
     "rtsp_url": "rtsp://YoUr46tdf:i75fgUyhg487Y@62.31.126.224:554/Streaming/Channels/1601",
     "gst_framerate": 20,
     "frame_resize": 0.3,
+    "detection_conf": 0.40,
     "video_path": "",
     "reports": [
         {
@@ -20,6 +21,16 @@
     ],
     "alarms": [
         {
+            "name": "staff_absent_alarm",
+            "module_id": "7f715d0f-0e10-4e97-abdb-86a37286183b",
+            "cooldown_seconds": 60,
+            "trigger_on": "staff_absent_alert",
+            "with_snapshot": true,
+            "data": {
+                "Status": "No Staff at Butcher Counter"
+            }
+        },
+        {
             "name": "lens_closed_alarm",
             "module_id": "30a332f5-0df9-45a2-81d7-ba274d78b2e7",
             "cooldown_seconds": 10,
@@ -31,6 +42,39 @@
         }
     ],
     "modules": [
+        {
+            "type": "staff_presence",
+            "name": "staff_presence_kasap",
+            "regions": [
+                {
+                    "type": "customer",
+                    "label": "Customer Area",
+                    "points": [
+                        [1220,251],[1188,342],[1143,455],[1113,557],[1073,666],
+                        [1030,778],[985,915],[948,1035],[905,1165],[835,1440],
+                        [0,1440],[310,1302],[393,1161],[472,1045],[537,935],
+                        [603,850],[660,763],[717,692],[798,572],[917,445]
+                    ]
+                },
+                {
+                    "type": "staff",
+                    "label": "Staff Area",
+                    "points": [
+                        [1220,254],[1197,330],[1153,432],[1118,530],[1062,680],
+                        [1032,781],[998,876],[965,991],[927,1118],[898,1228],
+                        [840,1440],[2560,1440],[2388,1220],[2213,965],[2068,784],
+                        [1873,551],[1803,481],[1748,420],[1703,377],[1670,335],
+                        [1637,311],[1608,283],[1558,245],[1543,288],[1455,290],
+                        [1283,298]
+                    ]
+                }
+            ],
+            "wait_threshold": 15.0,
+            "reference": "foot",
+            "scale": 0.3,
+            "show_zones": false,
+            "show_panel": true
+        },
         {
             "type": "bolge_vakit_analizi",
             "name": "bolge_vakit_kasap",

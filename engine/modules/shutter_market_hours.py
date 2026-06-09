@@ -479,8 +479,6 @@ class ShutterMarketHoursModule(BaseModule):
         cv2.polylines(frame, [self._poly], True, COLOR_ROI, 2)
         x, y, w, h = cv2.boundingRect(self._poly)
         cv2.rectangle(frame, (x, y), (x + w, y + h), COLOR_ROI, 1)
-        if self.show_panel:
-            frame = self._draw_panel(frame)
         return frame
 
     def _draw_panel(self, frame):

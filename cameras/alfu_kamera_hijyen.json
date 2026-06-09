@@ -7,6 +7,7 @@
     "rtsp_url": "rtsp://YoUr46tdf:i75fgUyhg487Y@62.31.126.224:554/Streaming/Channels/401",
     "gst_framerate": 20,
     "frame_resize": 0.3,
+    "detection_conf": 0.40,
     "video_path": "",
     "reports": [
         {
