@@ -73,7 +73,7 @@
             "reference": "foot",
             "scale": 0.3,
             "show_zones": false,
-            "show_panel": true
+            "show_panel": false
         },
         {
             "type": "bolge_vakit_analizi",
