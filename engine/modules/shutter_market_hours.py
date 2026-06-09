@@ -249,6 +249,9 @@ class ShutterMarketHoursModule(BaseModule):
         self._last_reset_date: Optional[datetime.date] = None
         self._last_save_time = 0.0
 
+        self._opened_just_now = False
+        self._closed_just_now = False
+
         self._state_machine = _ShutterStateMachine(smooth_window, sustain_sec)
         self._model = YOLO(self.model_path)
         self._last_status = None
@@ -386,9 +389,11 @@ class ShutterMarketHoursModule(BaseModule):
     def _on_stable_change(self, prev: str, new: str, now: dt_datetime) -> None:
         if new == "open" and prev == "closed":
             self._opening_time = now
+            self._opened_just_now = True
             print(f"  OPENING  {now.isoformat(timespec='seconds')}  closed→open")
         if new == "closed" and prev == "open":
             self._closing_time = now
+            self._closed_just_now = True
             print(f"  CLOSING  {now.isoformat(timespec='seconds')}  open→closed")
 
     def _predict_crop(self, crop: np.ndarray) -> tuple[str, dict[str, float]]:
@@ -453,6 +458,10 @@ class ShutterMarketHoursModule(BaseModule):
         st = self._last_status or {}
         opening = self._opening_time
         closing = self._closing_time
+        opened_alert = self._opened_just_now
+        closed_alert = self._closed_just_now
+        self._opened_just_now = False
+        self._closed_just_now = False
         return {
             "Opening Time": opening.isoformat(timespec="seconds") if opening else "",
             "Closing Time": closing.isoformat(timespec="seconds") if closing else "",
@@ -467,8 +476,8 @@ class ShutterMarketHoursModule(BaseModule):
                 f"{self._close_start.strftime('%H:%M')}-{self._close_end.strftime('%H:%M')}"
             ),
             "Development Mode": self.development,
-            "shutter_opened_alert": opening is not None,
-            "shutter_closed_alert": closing is not None,
+            "shutter_opened_alert": opened_alert,
+            "shutter_closed_alert": closed_alert,
         }
 
     # ==================== DRAW ====================
