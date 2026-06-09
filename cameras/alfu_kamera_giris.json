@@ -20,6 +20,26 @@
     ],
     "alarms": [
         {
+            "name": "shutter_opened_alarm",
+            "module_id": "90b71ffb-0773-463f-b19e-badfca64530a",
+            "cooldown_seconds": 43200,
+            "trigger_on": "shutter_opened_alert",
+            "with_snapshot": true,
+            "data": {
+                "Status": "Market Opened"
+            }
+        },
+        {
+            "name": "shutter_closed_alarm",
+            "module_id": "90b71ffb-0773-463f-b19e-badfca64530a",
+            "cooldown_seconds": 43200,
+            "trigger_on": "shutter_closed_alert",
+            "with_snapshot": true,
+            "data": {
+                "Status": "Market Closed"
+            }
+        },
+        {
             "name": "lens_closed_alarm",
             "module_id": "30a332f5-0df9-45a2-81d7-ba274d78b2e7",
             "cooldown_seconds": 10,
@@ -31,6 +51,40 @@
         }
     ],
     "modules": [
+        {
+            "type": "shutter_market_hours",
+            "name": "shutter_giris",
+            "polygon": [
+                [
+                    555,
+                    8
+                ],
+                [
+                    852,
+                    703
+                ],
+                [
+                    1758,
+                    697
+                ],
+                [
+                    2066,
+                    5
+                ],
+                [
+                    552,
+                    6
+                ]
+            ],
+            "model_path": "models/shutter_cls_best.pt",
+            "open_window_start": "08:00",
+            "open_window_end": "09:30",
+            "close_window_start": "20:30",
+            "close_window_end": "22:00",
+            "timezone": "Europe/London",
+            "development": false,
+            "show_panel": true
+        },
         {
             "type": "market_client_counter",
             "name": "market_counter_giris",
