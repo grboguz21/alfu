@@ -25,6 +25,7 @@ import cv2
 import io
 import os
 import urllib3
+import numpy as np
 from datetime import datetime
 from minio import Minio
 from minio.error import S3Error
@@ -154,6 +155,36 @@ class MinIOManager:
         """
         filename = prefix + datetime.now().strftime("%H-%M-%S.jpg")
         return self.upload_image(image, folder, filename, bucket_name)
+
+    def download_snapshot(self, folder: str, bucket_name: str = None):
+        """
+        Downloads snapshot.jpg for the given folder.
+        Returns cv2 BGR image or None.
+        """
+        if self.client is None:
+            return None
+        bucket    = bucket_name or self.bucket_name
+        today_str = datetime.now().strftime("%d-%m-%Y")
+        if self.branch_name:
+            object_name = f"{self.branch_name}/{today_str}/{folder}/snapshot.jpg"
+        else:
+            object_name = f"{today_str}/{folder}/snapshot.jpg"
+        try:
+            response = self.client.get_object(bucket, object_name)
+            data     = response.read()
+            response.close()
+            response.release_conn()
+            arr = np.frombuffer(data, np.uint8)
+            img = cv2.imdecode(arr, cv2.IMREAD_COLOR)
+            return img
+        except S3Error:
+            return None
+        except urllib3.exceptions.TimeoutError:
+            print(f"❌ MinIO timeout (download_snapshot: {folder})")
+            return None
+        except Exception as e:
+            print(f"❌ MinIO download error ({folder}): {e}")
+            return None
 
     def get_last_alert_index(self, folder: str, prefix: str = "Alert") -> int:
         """

@@ -1,0 +1,59 @@
+{
+  "enabled": true,
+  "minio_folder": "alfu_bolge_rapor",
+  "camera_id": "f74d304e-3e1c-4110-9bf9-288bbdd977b8",
+  "engine_path": "",
+  "frame_resize": 1.0,
+  "modules": [
+    {
+      "type": "bolge_vakit_rapor",
+      "name": "bolge_vakit_rapor_main",
+      "sources": [
+        {
+          "state_name": "bolge_vakit_manav",
+          "zone": "Zone 1",
+          "key": "Time Spent in the Greengrocer's",
+          "minio_folder": "alfu_kamera_manav"
+        },
+        {
+          "state_name": "bolge_vakit_kasap",
+          "zone": "Zone 2",
+          "key": "Time Spent in the Butcher",
+          "minio_folder": "alfu_kamera_kasap"
+        },
+        {
+          "state_name": "bolge_vakit_bakliyat",
+          "zone": "Zone 4",
+          "key": "Time Spent in the Pulses Section",
+          "minio_folder": "alfu_kamera_bakliyat"
+        },
+        {
+          "state_name": "bolge_vakit_hijyen",
+          "zone": "Zone 5",
+          "key": "Time Spent in the Hygiene Section",
+          "minio_folder": "alfu_kamera_hijyen"
+        },
+        {
+          "state_name": "bolge_soguk_dolap",
+          "zone": "Zone 6",
+          "key": "Time Spent in the Chilled & Dairy Section",
+          "minio_folder": "alfu_kamera_soguk_dolap"
+        },
+        {
+          "state_name": "bolge_vakit_atistirmalik",
+          "zone": "Zone 1",
+          "key": "Time Spent in the Snacks Section",
+          "minio_folder": "alfu_kamera_atistirmalik"
+        }
+      ]
+    }
+  ],
+  "reports": [
+    {
+      "name": "bolge_vakit_rapor",
+      "module_id": "a4c3df86-cb39-4da3-896c-b159fca3163d",
+      "interval_seconds": 60,
+      "camera_id": "f74d304e-3e1c-4110-9bf9-288bbdd977b8"
+    }
+  ]
+}

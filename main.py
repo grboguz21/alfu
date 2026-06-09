@@ -110,8 +110,11 @@ def track_video(video_path       = None,
             data             = alarm_cfg.get("data", {}),
         )
 
-    source = gst_pipeline if gst_pipeline is not None else video_path
-    assert source is not None, "video_path or gst_pipeline must be provided"
+    source      = gst_pipeline if gst_pipeline is not None else video_path
+    _no_stream  = source is None
+    if _no_stream:
+        print(f"[{minio_folder}] ⚠️  NO-STREAM MODU — bu kamera video pipeline kullanmıyor. "
+              f"Sadece modül raporlaması aktif, görüntü işleme atlanıyor.")
     reconnect_delay_sec = cam_cfg.get("reconnect_delay_sec", 5)
 
     stream_alarm_cfg = cam_cfg.get("stream_alarm", {})
@@ -152,33 +155,35 @@ def track_video(video_path       = None,
         write_camera_health(minio_folder, True)
         print(f"[{minio_folder}] Stream reconnected.")
 
-    mtt.start_cap_thread(
-        source,
-        resize              = cam_cfg.get("frame_resize"),
-        reconnect_delay_sec = reconnect_delay_sec,
-        on_disconnect       = _on_disconnect if gst_pipeline else None,
-        on_reconnect        = _on_reconnect  if gst_pipeline else None,
-    )
-
-    has_detection = bool(engine_path)
-    if has_detection:
-        mtt.start_detection_thread(
-            engine_path,
-            batch_size       = cam_cfg.get("batch_size", batch_size),
-            device           = device,
-            img_size         = img_size,
-            filter_classes   = cam_cfg.get("detection_classes", None),
-            detection_fps    = cam_cfg.get("detection_fps", None),
-            detection_client = detection_client,  # ← geçir (None ise klasik mod)
+    has_detection = bool(engine_path) and not _no_stream
+    if not _no_stream:
+        mtt.start_cap_thread(
+            source,
+            resize              = cam_cfg.get("frame_resize"),
+            reconnect_delay_sec = reconnect_delay_sec,
+            on_disconnect       = _on_disconnect if gst_pipeline else None,
+            on_reconnect        = _on_reconnect  if gst_pipeline else None,
         )
-        mtt.start_tracking_thread(
-            tracker       = tracker,
-            max_age       = max_age,
-            min_hits      = min_hits,
-            iou_threshold = iou_threshold,
-        )
+        if has_detection:
+            mtt.start_detection_thread(
+                engine_path,
+                batch_size       = cam_cfg.get("batch_size", batch_size),
+                device           = device,
+                img_size         = img_size,
+                filter_classes   = cam_cfg.get("detection_classes", None),
+                detection_fps    = cam_cfg.get("detection_fps", None),
+                detection_client = detection_client,
+            )
+            mtt.start_tracking_thread(
+                tracker       = tracker,
+                max_age       = max_age,
+                min_hits      = min_hits,
+                iou_threshold = iou_threshold,
+            )
+        else:
+            print(f"[{minio_folder}] engine_path empty - detection/tracking skipped")
     else:
-        print(f"[{minio_folder}] engine_path empty - detection/tracking skipped")
+        print(f"[{minio_folder}] Video pipeline atlandı (no-stream modu).")
 
     def shutdown(signum, _):
         print(f"\n[main] Signal received ({signum}), shutting down...")
@@ -198,42 +203,51 @@ def track_video(video_path       = None,
         _last_health_write = 0
 
         while True:
-            ret, frame = mtt.get_frame()
-            if not ret or frame is None:
-                _consecutive_empty += 1
-                if has_detection and _consecutive_empty > 20:
-                    od_alive = (mtt.od is not None and
-                                mtt.od.thread is not None and
-                                mtt.od.thread.is_alive())
-                    if not od_alive:
-                        print(f"[{minio_folder}] Detection thread died, shutting down...")
-                        break
-                time.sleep(0.5)
-                continue
-            _consecutive_empty = 0
-
-            if time.time() - _last_health_write > 30:
-                write_camera_health(minio_folder, True)
-                _last_health_write = time.time()
-
-            if _first_frame:
-                fh, fw = frame.shape[:2]
-                print(f"[{minio_folder}] Stream started: {fw}x{fh}")
-                _first_frame = False
-
-            if has_detection:
-                bboxes, class_ids, scores, object_ids = mtt.get_tracking()
-                class_names = mtt.od.classes
-            else:
+            if _no_stream:
+                time.sleep(1.0)
+                frame = None
                 bboxes, class_ids, scores, object_ids = [], [], [], []
                 class_names = {}
+                move_info = {"triggered": False}
+            else:
+                ret, frame = mtt.get_frame()
+                if not ret or frame is None:
+                    _consecutive_empty += 1
+                    if has_detection and _consecutive_empty > 20:
+                        od_alive = (mtt.od is not None and
+                                    mtt.od.thread is not None and
+                                    mtt.od.thread.is_alive())
+                        if not od_alive:
+                            print(f"[{minio_folder}] Detection thread died, shutting down...")
+                            break
+                    time.sleep(0.5)
+                    continue
+                _consecutive_empty = 0
+
+                if time.time() - _last_health_write > 30:
+                    write_camera_health(minio_folder, True)
+                    _last_health_write = time.time()
+
+                if _first_frame:
+                    fh, fw = frame.shape[:2]
+                    print(f"[{minio_folder}] Stream started: {fw}x{fh}")
+                    _first_frame = False
+
+                if has_detection:
+                    bboxes, class_ids, scores, object_ids = mtt.get_tracking()
+                    class_names = mtt.od.classes
+                else:
+                    bboxes, class_ids, scores, object_ids = [], [], [], []
+                    class_names = {}
+
+                move_info = {"triggered": False}
+                if move_detector is not None:
+                    move_info = move_detector.process(frame)
 
             modules.update(bboxes, class_ids, scores, object_ids, frame, class_names)
 
-            if move_detector is not None:
-                move_info = move_detector.process(frame)
-
-            frame = modules.draw(frame)
+            if frame is not None:
+                frame = modules.draw(frame)
 
             try:
                 sent = report.check_reports()
@@ -245,21 +259,26 @@ def track_video(video_path       = None,
 
                     if r.get("type") == "alarm":
                         if report.can_send_alarm(r["name"]):
-                            minio_path = minio.upload_alert(frame, minio_folder, prefix=f"{r['name']}_")
+                            minio_path = minio.upload_alert(frame, minio_folder, prefix=f"{r['name']}_") if frame is not None else None
                             report.send_alarm(name=r["name"], data=report_data, media_path=minio_path)
                     elif sent.get(r["name"]):
-                        minio_path = minio.upload_report(frame, minio_folder)
+                        if _no_stream and frame is None:
+                            for _mod in modules.modules:
+                                if hasattr(_mod, "compose_frame"):
+                                    frame = _mod.compose_frame(minio)
+                                    break
+                        minio_path = minio.upload_report(frame, minio_folder) if frame is not None else None
                         report.send_report(name=r["name"], data=report_data, media_path=minio_path)
 
                 for alarm in trigger_alarms:
                     if data.get(alarm["trigger_on"]) and report.can_send_alarm(alarm["name"]):
                         media_path = None
-                        if alarm.get("with_snapshot", False):
+                        if alarm.get("with_snapshot", False) and frame is not None:
                             media_path = minio.upload_alert(frame, minio_folder, prefix=f"{alarm['name']}_")
                         extra = {k: data[k] for k in alarm.get("include_fields", []) if k in data}
                         report.send_alarm(name=alarm["name"], media_path=media_path, data=extra if extra else None)
 
-                if move_detector is not None:
+                if move_detector is not None and frame is not None:
                     frame = move_detector.draw(frame)
                     if move_info["triggered"] and report.can_send_alarm("camera_move"):
                         media_path = minio.upload_alert(frame, minio_folder, prefix="camera_move_")
@@ -268,7 +287,7 @@ def track_video(video_path       = None,
             except Exception as report_err:
                 print(f"⚠️ [NETWORK/API ERROR] Rapor veya alarm gonderilirken hata olustu ama kod devam ediyor: {report_err}")
 
-            if display:
+            if display and frame is not None:
                 cv2.imshow(_window_name, frame)
                 if cv2.waitKey(1) == 27:
                     break
