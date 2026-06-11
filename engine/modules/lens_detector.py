@@ -70,12 +70,14 @@ class LensDetectorModule(BaseModule):
                  resize_factor: int = 10,
                  night_threshold: float = 30.0,
                  baseline_window: int = 50,
+                 alert_delay_sec: float = 10.0,
                  show_panel: bool = True):
         self.name            = name
         self.cooldown        = cooldown
         self.blur_threshold  = blur_threshold
         self.resize_factor   = resize_factor
         self.night_threshold = night_threshold
+        self.alert_delay_sec = alert_delay_sec
         self.show_panel      = show_panel
 
         # ── Detection state ───────────────────────────────────────
@@ -84,6 +86,7 @@ class LensDetectorModule(BaseModule):
         self.last_alert_time     = None      # datetime
         self.last_was_covered    = False
         self.covered_start_time  = None      # datetime
+        self._alerted_this_cover = False
         self._last_reset_date    = None
         self._daily_alert_count  = 0
 
@@ -124,6 +127,7 @@ class LensDetectorModule(BaseModule):
                 "last_was_covered":  self.last_was_covered,
                 "covered_start_time": (self.covered_start_time.isoformat()
                                        if self.covered_start_time else None),
+                "alerted_this_cover": self._alerted_this_cover,
                 "daily_alert_count": self._daily_alert_count,
             }
 
@@ -191,6 +195,7 @@ class LensDetectorModule(BaseModule):
                 self.covered_start_time = datetime.datetime.fromisoformat(covered_start)
 
             self.last_was_covered   = bool(state.get("last_was_covered", False))
+            self._alerted_this_cover = bool(state.get("alerted_this_cover", False))
             self._daily_alert_count = int(state.get("daily_alert_count", 0))
             self._last_reset_date   = datetime.date.fromisoformat(saved_date_str)
 
@@ -413,21 +418,38 @@ class LensDetectorModule(BaseModule):
         should_alert = False
         current_time = datetime.datetime.now()
 
+        # Duration lens has been covered
+        covered_duration = 0.0
+
         if lens_covered:
             if not self.last_was_covered:
-                # First closure
-                should_alert             = True
+                # First closure detected — start the timer, don't alert yet
                 self.covered_start_time  = current_time
-                self.last_alert_time     = current_time
                 self.last_was_covered    = True
-                self._daily_alert_count += 1
+                self._alerted_this_cover = False
                 self._add_log(
-                    f"LENS COVERED ({mode}) | {reason} | "
-                    f"Criteria {criteria_met}/{criteria_required}",
-                    color=(0, 0, 255),
+                    f"LENS COVER DETECTED ({mode}) | {reason} | "
+                    f"Criteria {criteria_met}/{criteria_required} | "
+                    f"waiting {self.alert_delay_sec:.0f}s",
+                    color=(0, 165, 255),
                 )
+
+            if self.covered_start_time:
+                covered_duration = (current_time - self.covered_start_time).total_seconds()
+
+            if not self._alerted_this_cover:
+                if covered_duration >= self.alert_delay_sec:
+                    should_alert             = True
+                    self.last_alert_time     = current_time
+                    self._alerted_this_cover = True
+                    self._daily_alert_count += 1
+                    self._add_log(
+                        f"LENS COVERED ({mode}) for {self.alert_delay_sec:.0f}s+ | "
+                        f"{reason} | Criteria {criteria_met}/{criteria_required}",
+                        color=(0, 0, 255),
+                    )
             elif self.last_alert_time is not None:
-                # Still covered — cooldown check
+                # Still covered — cooldown check for repeat alerts
                 elapsed = (current_time - self.last_alert_time).total_seconds()
                 if elapsed >= self.cooldown:
                     should_alert             = True
@@ -441,13 +463,9 @@ class LensDetectorModule(BaseModule):
         else:
             if self.last_was_covered:
                 self._add_log("Lens is open again", color=(0, 255, 120))
-            self.last_was_covered   = False
-            self.covered_start_time = None
-
-        # Duration lens has been covered
-        covered_duration = 0.0
-        if lens_covered and self.covered_start_time:
-            covered_duration = (current_time - self.covered_start_time).total_seconds()
+            self.last_was_covered    = False
+            self.covered_start_time  = None
+            self._alerted_this_cover = False
 
         # Store last status for draw()
         self._last_is_covered   = lens_covered

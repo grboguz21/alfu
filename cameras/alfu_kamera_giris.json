@@ -25,6 +25,11 @@
             "cooldown_seconds": 43200,
             "trigger_on": "shutter_opened_alert",
             "with_snapshot": true,
+            "include_fields": [
+                "Opening Time",
+                "Scheduled Opening Time",
+                "Opening Time Difference"
+            ],
             "data": {
                 "Status": "Market Opened"
             }
@@ -35,6 +40,11 @@
             "cooldown_seconds": 43200,
             "trigger_on": "shutter_closed_alert",
             "with_snapshot": true,
+            "include_fields": [
+                "Closing Time",
+                "Scheduled Closing Time",
+                "Closing Time Difference"
+            ],
             "data": {
                 "Status": "Market Closed"
             }
@@ -83,6 +93,7 @@
             "close_window_end": "22:00",
             "timezone": "Europe/London",
             "development": false,
+            "branch_id": "8475c722-aab6-4b33-9786-a7e2c213759e",
             "show_panel": true
         },
         {

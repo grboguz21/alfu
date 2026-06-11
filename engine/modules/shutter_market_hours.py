@@ -29,17 +29,25 @@ Config example:
         "imgsz":               224,
         "sustain_sec":         5.0,
         "smooth_window":       15,
-        "show_panel":          true
+        "show_panel":          false,
+        "branch_hours_headers": {}
     }
 
 get_data() output:
     {
-        "Opening Time":      "2026-06-08T08:12:00" or "",
-        "Closing Time":      "2026-06-08T20:45:00" or "",
-        "Stable Shutter":    "open",
-        "YOLO Active":       true,
-        "Schedule Status":   "open window"
+        "Opening Time":              "2026-06-08T08:12:00" or "",
+        "Closing Time":              "2026-06-08T20:45:00" or "",
+        "Scheduled Opening Time":    "09:00",
+        "Scheduled Closing Time":  "21:00",
+        "Opening Time Difference": "-00:48:00",
+        "Closing Time Difference": "+00:10:12",
+        "Stable Shutter":            "open",
+        "YOLO Active":               true,
+        "Schedule Status":           "open window"
     }
+
+Scheduled times come from YourEye branch hours API (polled every 6h by default).
+Difference = actual − scheduled (negative = earlier, positive = later).
 """
 
 from __future__ import annotations
@@ -51,7 +59,7 @@ import time as _time
 from collections import Counter, deque
 from datetime import datetime as dt_datetime
 from datetime import time as dt_time
-from typing import Optional
+from typing import Any, Optional
 from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
 import cv2
@@ -61,11 +69,13 @@ from ultralytics import YOLO
 
 from engine.shared_memory import GPU_LOCK
 from .base import BaseModule
+from .branch_hours import BranchHours, build_hours_difference_data, fetch_branch_hours
 
 # ==================== CONFIG ====================
 
 STATE_DIR = "state"
 SAVE_INTERVAL_SEC = 30
+BRANCH_HOURS_POLL_SEC = 6 * 3600
 
 ROI_PAD = 4
 MIN_CROP_SIZE = 8
@@ -211,7 +221,11 @@ class ShutterMarketHoursModule(BaseModule):
         sustain_sec: float = 5.0,
         smooth_window: int = 15,
         roi_pad: int = ROI_PAD,
-        show_panel: bool = True,
+        show_panel: bool = False,
+        branch_id: str = "",
+        branch_hours_url: str = "",
+        branch_hours_poll_hours: float = 6.0,
+        branch_hours_headers: dict[str, Any] | None = None,
         **_kwargs,
     ):
         self.name = name
@@ -246,17 +260,29 @@ class ShutterMarketHoursModule(BaseModule):
 
         self._opening_time: Optional[dt_datetime] = None
         self._closing_time: Optional[dt_datetime] = None
-        self._last_reset_date: Optional[datetime.date] = None
-        self._last_save_time = 0.0
-
         self._opened_just_now = False
         self._closed_just_now = False
+        self._last_reset_date: Optional[datetime.date] = None
+        self._last_save_time = 0.0
 
         self._state_machine = _ShutterStateMachine(smooth_window, sustain_sec)
         self._model = YOLO(self.model_path)
         self._last_status = None
 
+        self._branch_id = (branch_id or "").strip()
+        self._branch_hours_api_base = (branch_hours_url or "").strip().rstrip("/")
+        if self._branch_hours_api_base.endswith("/hours"):
+            self._branch_hours_api_base = self._branch_hours_api_base[: -len("/hours")]
+        poll_h = float(branch_hours_poll_hours)
+        self._branch_hours_poll_sec = max(60.0, poll_h * 3600.0)
+        self._scheduled_hours: BranchHours | None = None
+        self._last_branch_hours_fetch = 0.0
+        raw_headers = branch_hours_headers or {}
+        self._branch_hours_headers = {str(k): str(v) for k, v in raw_headers.items()}
+
         self._load_state()
+        if self._branch_id:
+            self._refresh_branch_hours(force=True)
         print(f"✅ ShutterMarketHoursModule ready [{name}]  model={self.model_path}")
 
     # ==================== PERSISTENCE ====================
@@ -386,6 +412,42 @@ class ShutterMarketHoursModule(BaseModule):
 
         return False, "idle"
 
+    def _refresh_branch_hours(self, *, force: bool = False) -> None:
+        if not self._branch_id:
+            return
+        wall = _time.time()
+        if not force and wall - self._last_branch_hours_fetch < self._branch_hours_poll_sec:
+            return
+        try:
+            kwargs: dict[str, Any] = {"request_headers": self._branch_hours_headers}
+            if self._branch_hours_api_base:
+                kwargs["api_base"] = self._branch_hours_api_base
+            fetched = fetch_branch_hours(self._branch_id, **kwargs)
+        except Exception as exc:
+            print(f"[{self.name}] Branch hours fetch failed: {exc}")
+            return
+
+        self._last_branch_hours_fetch = wall
+        if self._scheduled_hours is None:
+            print(
+                f"[{self.name}] Branch hours loaded: open {fetched.raw_opening}  "
+                f"close {fetched.raw_closing}"
+            )
+        elif (
+            self._scheduled_hours.raw_opening != fetched.raw_opening
+            or self._scheduled_hours.raw_closing != fetched.raw_closing
+        ):
+            print(
+                f"[{self.name}] Branch hours updated: "
+                f"open {self._scheduled_hours.raw_opening}→{fetched.raw_opening}  "
+                f"close {self._scheduled_hours.raw_closing}→{fetched.raw_closing}"
+            )
+        self._scheduled_hours = fetched
+
+    def _maybe_poll_branch_hours(self) -> None:
+        if self._branch_id:
+            self._refresh_branch_hours(force=False)
+
     def _on_stable_change(self, prev: str, new: str, now: dt_datetime) -> None:
         if new == "open" and prev == "closed":
             self._opening_time = now
@@ -419,6 +481,7 @@ class ShutterMarketHoursModule(BaseModule):
 
     def update(self, bboxes, class_ids, scores, object_ids, frame, class_names: dict):
         self._check_daily_reset()
+        self._maybe_poll_branch_hours()
         now = _time.time()
         ts = self._now()
         infer_on, idle_reason = self._should_infer(ts)
@@ -454,6 +517,13 @@ class ShutterMarketHoursModule(BaseModule):
 
     # ==================== DATA ====================
 
+    def _hours_difference_data(self) -> dict[str, str]:
+        return build_hours_difference_data(
+            opening_time=self._opening_time,
+            closing_time=self._closing_time,
+            scheduled=self._scheduled_hours,
+        )
+
     def get_data(self) -> dict:
         st = self._last_status or {}
         opening = self._opening_time
@@ -462,7 +532,8 @@ class ShutterMarketHoursModule(BaseModule):
         closed_alert = self._closed_just_now
         self._opened_just_now = False
         self._closed_just_now = False
-        return {
+
+        data = {
             "Opening Time": opening.isoformat(timespec="seconds") if opening else "",
             "Closing Time": closing.isoformat(timespec="seconds") if closing else "",
             "Stable Shutter": st.get("stable", self._state_machine.stable_state),
@@ -476,9 +547,12 @@ class ShutterMarketHoursModule(BaseModule):
                 f"{self._close_start.strftime('%H:%M')}-{self._close_end.strftime('%H:%M')}"
             ),
             "Development Mode": self.development,
+            "Branch Id": self._branch_id,
             "shutter_opened_alert": opened_alert,
             "shutter_closed_alert": closed_alert,
         }
+        data.update(self._hours_difference_data())
+        return data
 
     # ==================== DRAW ====================
 
@@ -488,6 +562,8 @@ class ShutterMarketHoursModule(BaseModule):
         cv2.polylines(frame, [self._poly], True, COLOR_ROI, 2)
         x, y, w, h = cv2.boundingRect(self._poly)
         cv2.rectangle(frame, (x, y), (x + w, y + h), COLOR_ROI, 1)
+        if self.show_panel:
+            frame = self._draw_panel(frame)
         return frame
 
     def _draw_panel(self, frame):
@@ -510,13 +586,22 @@ class ShutterMarketHoursModule(BaseModule):
             prob = probs.get(stable, 0.0)
 
         mode = "YOLO" if infer_on else f"IDLE ({idle_reason})"
+        diff = self._hours_difference_data()
+        open_diff = diff.get("Opening Time Difference", "")
+        close_diff = diff.get("Closing Time Difference", "")
+        sched_open = diff.get("Scheduled Opening Time", "")
+        sched_close = diff.get("Scheduled Closing Time", "")
         lines = [
             f"{mode}  {st['clock']}",
             st["schedule"],
             f"pred: {pred} ({prob:.0%})  stable: {stable}",
-            f"opening: {opening.strftime('%H:%M:%S') if opening else '—'}",
-            f"closing: {closing.strftime('%H:%M:%S') if closing else '—'}",
+            f"opening: {opening.strftime('%H:%M:%S') if opening else '—'}"
+            + (f"  ({open_diff})" if open_diff else ""),
+            f"closing: {closing.strftime('%H:%M:%S') if closing else '—'}"
+            + (f"  ({close_diff})" if close_diff else ""),
         ]
+        if sched_open or sched_close:
+            lines.append(f"scheduled: {sched_open} – {sched_close}")
 
         box_h = 16 + len(lines) * 20
         x1 = fw - PANEL_WIDTH - pad

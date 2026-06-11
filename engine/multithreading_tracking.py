@@ -10,7 +10,8 @@ from engine.shared_memory import SharedMemory, TRACKING_BUFFER_SIZE, GPU_LOCK
 
 class Cap:
     def __init__(self, resize=None, reconnect_delay_sec: int = 5,
-                 on_disconnect=None, on_reconnect=None):
+                 on_disconnect=None, on_reconnect=None,
+                 alarm_after_attempts: int = 2):
         assert isinstance(resize, float) or resize is None, "Resize must be a float"
         self.thread              = None
         self.cap                 = None
@@ -19,9 +20,11 @@ class Cap:
         self.reconnect_delay_sec = reconnect_delay_sec
         self.on_disconnect       = on_disconnect
         self.on_reconnect        = on_reconnect
+        self.alarm_after_attempts = alarm_after_attempts
         self._source             = None
         self._backend            = cv2.CAP_ANY
         self._had_successful_frame = False
+        self._disconnect_notified = False
         self._stop_requested     = False
 
     def stop(self):
@@ -78,24 +81,28 @@ class Cap:
                 print(f"CAP: Stream disconnected — reconnecting in {delay}s "
                       f"(attempt {attempt})...")
 
-                if attempt == 1 and self.on_disconnect and self._had_successful_frame and not self._stop_requested:
-                    try:
-                        self.on_disconnect()
-                    except Exception:
-                        pass
-
                 time.sleep(delay)
 
                 if self._reconnect():
                     print(f"CAP: Reconnected! (attempt {attempt})")
-                    if self.on_reconnect:
+                    if self._disconnect_notified and self.on_reconnect:
                         try:
                             self.on_reconnect()
                         except Exception:
                             pass
                     attempt = 0
+                    self._disconnect_notified = False
                 else:
                     print(f"CAP: Could not connect, will retry...")
+                    if (attempt >= self.alarm_after_attempts
+                            and not self._disconnect_notified
+                            and self.on_disconnect and self._had_successful_frame
+                            and not self._stop_requested):
+                        try:
+                            self.on_disconnect()
+                        except Exception:
+                            pass
+                        self._disconnect_notified = True
                 continue
 
             attempt = 0
@@ -121,9 +128,11 @@ class MultiThreadingTracker:
         self.resize                  = None
 
     def start_cap_thread(self, cam, resize=None, reconnect_delay_sec: int = 5,
-                         on_disconnect=None, on_reconnect=None):
+                         on_disconnect=None, on_reconnect=None,
+                         alarm_after_attempts: int = 2):
         self.cap = Cap(resize, reconnect_delay_sec=reconnect_delay_sec,
-                       on_disconnect=on_disconnect, on_reconnect=on_reconnect)
+                       on_disconnect=on_disconnect, on_reconnect=on_reconnect,
+                       alarm_after_attempts=alarm_after_attempts)
         if isinstance(cam, str) and cam.startswith("rtspsrc"):
             self.cap.load_video_capture(cam, cv2.CAP_GSTREAMER)
         else:

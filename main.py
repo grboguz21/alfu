@@ -160,10 +160,11 @@ def track_video(video_path       = None,
     if not _no_stream:
         mtt.start_cap_thread(
             source,
-            resize              = cam_cfg.get("frame_resize"),
-            reconnect_delay_sec = reconnect_delay_sec,
-            on_disconnect       = _on_disconnect if gst_pipeline else None,
-            on_reconnect        = _on_reconnect  if gst_pipeline else None,
+            resize               = cam_cfg.get("frame_resize"),
+            reconnect_delay_sec  = reconnect_delay_sec,
+            on_disconnect        = _on_disconnect if gst_pipeline else None,
+            on_reconnect         = _on_reconnect  if gst_pipeline else None,
+            alarm_after_attempts = cam_cfg.get("alarm_after_attempts", 2),
         )
         if has_detection:
             mtt.start_detection_thread(
