@@ -1,7 +1,7 @@
 {
     "enabled": true,
     "minio_folder": "alfu_kamera_hijyen",
-    "engine_path": "models/yolo26l.pt",
+    "engine_path": "models/yolo26l.engine",
     "camera_id": "bf310676-88ad-4e24-a783-463930837e87",
     "module_id": "a4c3df86-cb39-4da3-896c-b159fca3163d",
     "rtsp_url": "rtsp://YoUr46tdf:i75fgUyhg487Y@62.31.126.224:554/Streaming/Channels/401",
@@ -109,7 +109,7 @@
         {
             "type": "face_blurring",
             "name": "yuz_blur_hijyen",
-            "model_path": "models/yolov8l_100e.pt",
+            "model_path": "models/yolov8l_100e.engine",
             "confidence": 0.45,
             "process_every_n": 2,
             "show_panel": false

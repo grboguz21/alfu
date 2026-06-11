@@ -1,7 +1,7 @@
 {
     "enabled": true,
     "minio_folder": "alfu_kamera_soguk_dolap",
-    "engine_path": "models/yolo26l.pt",
+    "engine_path": "models/yolo26l.engine",
     "camera_id": "72b5d59b-ed14-4e42-9ec7-230d5784f367",
     "module_id": "a4c3df86-cb39-4da3-896c-b159fca3163d",
     "rtsp_url": "rtsp://YoUr46tdf:i75fgUyhg487Y@62.31.126.224:554/Streaming/Channels/1101",
@@ -117,7 +117,7 @@
         {
             "type": "face_blurring",
             "name": "yuz_blur_soguk_dolap",
-            "model_path": "models/yolov8l_100e.pt",
+            "model_path": "models/yolov8l_100e.engine",
             "confidence": 0.45,
             "process_every_n": 2,
             "show_panel": false

@@ -59,7 +59,8 @@ MODULE_REGISTRY = {
 class ModuleRunner:
     """Loads modules from config list, runs them on each frame, and collects data."""
 
-    def __init__(self, modules_cfg: list, frame_resize: float = 1.0):
+    def __init__(self, modules_cfg: list, frame_resize: float = 1.0,
+                 face_service_client=None):
         self.modules = []
         # Sınıf düzeyinde (self.) tanımladık ki get_data içerisinden erişebilelim
         self.disabled_modules = []
@@ -80,6 +81,8 @@ class ModuleRunner:
             params = {k: v for k, v in cfg.items() if k != "type"}
             if scale != 1.0:
                 params = _scale_module_coords(params, scale)
+            if module_type == "face_blurring" and face_service_client is not None:
+                params["face_service_client"] = face_service_client
             self.modules.append(cls(**params))
             print(f"✅ Module loaded: {module_type} → {cfg.get('name', '')}")
 

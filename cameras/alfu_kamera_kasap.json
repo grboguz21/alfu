@@ -1,7 +1,7 @@
 {
     "enabled": true,
     "minio_folder": "alfu_kamera_kasap",
-    "engine_path": "models/yolo26l.pt",
+    "engine_path": "models/yolo26l.engine",
     "camera_id": "431c0433-f54a-4f12-af68-fe5e77572cef",
     "module_id": "a4c3df86-cb39-4da3-896c-b159fca3163d",
     "rtsp_url": "rtsp://YoUr46tdf:i75fgUyhg487Y@62.31.126.224:554/Streaming/Channels/1601",
@@ -140,7 +140,7 @@
         {
             "type": "face_blurring",
             "name": "yuz_blur_kasap",
-            "model_path": "models/yolov8l_100e.pt",
+            "model_path": "models/yolov8l_100e.engine",
             "confidence": 0.45,
             "process_every_n": 2,
             "show_panel": false

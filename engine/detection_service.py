@@ -104,6 +104,11 @@ class DetectionService:
 def _service_worker(model_path, device, batch_size, img_size, conf,
                     request_queue, response_queues, names_queue):
 
+    # SIGINT'i yok say — kapatma main process'in stop() ile gönderdiği
+    # SIGTERM (process.terminate()) üzerinden, sessizce yapılır.
+    import signal
+    signal.signal(signal.SIGINT, signal.SIG_IGN)
+
     # Temiz CUDA başlangıcı
     os.environ["CUDA_MODULE_LOADING"]  = "LAZY"
     os.environ["CUDA_VISIBLE_DEVICES"] = str(device)

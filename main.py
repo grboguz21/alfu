@@ -10,7 +10,6 @@ import threading
 import time
 from pathlib import Path
 
-import torch
 import multiprocessing
 from engine.multithreading_tracking import MultiThreadingTracker
 from engine.minio_manager           import MinIOManager
@@ -46,7 +45,8 @@ def track_video(video_path       = None,
                 gst_pipeline     = None,
                 minio_folder     = "Kamera",
                 display          = False,
-                detection_client = None):   # ← YENİ parametre
+                detection_client = None,    # ← YENİ parametre
+                face_service_client = None):  # ← paylaşılan face_blurring servisi
 
     mtt = MultiThreadingTracker()
     cfg = load_config()
@@ -71,7 +71,8 @@ def track_video(video_path       = None,
     )
 
     _frame_resize = cam_cfg.get("frame_resize", 1.0)
-    modules = ModuleRunner(cam_cfg.get("modules", []), frame_resize=_frame_resize)
+    modules = ModuleRunner(cam_cfg.get("modules", []), frame_resize=_frame_resize,
+                            face_service_client=face_service_client)
 
     _reports_cfg = cam_cfg.get("reports") or []
     if not _reports_cfg and cam_cfg.get("report_interval_seconds"):
@@ -311,6 +312,7 @@ def track_video(video_path       = None,
         timer.cancel()
         if _is_cuda_error:
             try:
+                import torch
                 torch.cuda.empty_cache()
             except Exception:
                 pass
@@ -471,6 +473,33 @@ if __name__ == "__main__":
 
         print(f"[main] ✅ Servis hazır: {engine_path} — {len(svc.model_names)} sınıf")
 
+    # ── Face Blurring DetectionService (paylaşılan) ───────────────
+    FACE_MODEL_PATH = "models/yolov8l_100e.engine"
+    face_clients: dict = {}
+
+    face_cams = [
+        cam for cam in cameras
+        if any(m.get("type") == "face_blurring" and m.get("model_path") == FACE_MODEL_PATH
+               for m in cam.get("modules", []))
+    ]
+
+    if face_cams:
+        face_svc = DetectionService(
+            model_path = FACE_MODEL_PATH,
+            device     = 0,
+            batch_size = max(len(face_cams), 4),
+            img_size   = 640,
+            conf       = 0.45,
+        )
+        for cam in face_cams:
+            face_clients[cam["minio_folder"]] = face_svc.make_client(
+                cam_id = cam["minio_folder"],
+            )
+        face_svc.start()
+        services[FACE_MODEL_PATH] = face_svc
+        print(f"[main] ✅ Face Blurring servisi hazır: {FACE_MODEL_PATH} — {len(face_cams)} kamera")
+    # ── Face Blurring DetectionService bitiş ──────────────────────
+
     print(f"[main] Tüm servisler hazır. {len(cameras)} kamera başlatılıyor...")
     # ── DetectionService bitiş ────────────────────────────────────
 
@@ -478,10 +507,11 @@ if __name__ == "__main__":
     for cam in cameras:
         folder = cam["minio_folder"]
         job = {
-            "engine_path"     : cam["engine_path"],
-            "minio_folder"    : folder,
-            "display"         : args.display,
-            "detection_client": clients.get(folder),  # ← None ise klasik mod
+            "engine_path"        : cam["engine_path"],
+            "minio_folder"       : folder,
+            "display"            : args.display,
+            "detection_client"   : clients.get(folder),       # ← None ise klasik mod
+            "face_service_client": face_clients.get(folder),  # ← None ise klasik mod
         }
         if cam.get("gst_pipeline"):
             job["gst_pipeline"] = cam["gst_pipeline"]
@@ -549,18 +579,31 @@ if __name__ == "__main__":
                 for ep, svc in services.items():
                     if not svc.is_alive:
                         print(f"[supervisor] DetectionService çöktü: {ep} — yeniden başlatılıyor...")
-                        new_svc = DetectionService(
-                            model_path = ep,
-                            device     = 0,
-                            batch_size = max(len(engine_groups[ep]), 4),
-                            img_size   = engine_groups[ep][0].get("img_size", 416),
-                            conf       = 0.25,
-                        )
-                        for cam in engine_groups[ep]:
-                            clients[cam["minio_folder"]] = new_svc.make_client(
-                                cam_id         = cam["minio_folder"],
-                                filter_classes = cam.get("detection_classes"),
+                        if ep == FACE_MODEL_PATH:
+                            new_svc = DetectionService(
+                                model_path = FACE_MODEL_PATH,
+                                device     = 0,
+                                batch_size = max(len(face_cams), 4),
+                                img_size   = 640,
+                                conf       = 0.45,
                             )
+                            for cam in face_cams:
+                                face_clients[cam["minio_folder"]] = new_svc.make_client(
+                                    cam_id = cam["minio_folder"],
+                                )
+                        else:
+                            new_svc = DetectionService(
+                                model_path = ep,
+                                device     = 0,
+                                batch_size = max(len(engine_groups[ep]), 4),
+                                img_size   = engine_groups[ep][0].get("img_size", 416),
+                                conf       = 0.25,
+                            )
+                            for cam in engine_groups[ep]:
+                                clients[cam["minio_folder"]] = new_svc.make_client(
+                                    cam_id         = cam["minio_folder"],
+                                    filter_classes = cam.get("detection_classes"),
+                                )
                         new_svc.start()
                         services[ep] = new_svc
 

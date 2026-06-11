@@ -6,10 +6,8 @@ if platform.system() == "Darwin":
     print("MAC OS: Setting MPS Fallback")
     os.environ["PYTORCH_ENABLE_MPS_FALLBACK"] = "1"
 
-from ultralytics import YOLO
 import random
 import colorsys
-import torch
 from threading import Thread
 from engine.shared_memory import SharedMemory, DETECTION_BUFFER_SIZE, GPU_LOCK
 
@@ -41,6 +39,7 @@ class ObjectDetection:
             print("Object Detection: Merkezi DetectionService kullanılıyor")
         else:
             # Klasik mod — model bu process'te yüklenir
+            from ultralytics import YOLO
             self.model   = YOLO(self.weights_path, task="detect")
             self.classes = self.model.names
             print("Object Detection: Model yüklendi")
@@ -51,6 +50,8 @@ class ObjectDetection:
     def _reload_model(self):
         if self._client is not None:
             return True  # servis modunu reload etmeye gerek yok
+        import torch
+        from ultralytics import YOLO
         print("OD: CUDA error detected, reloading model...", flush=True)
         try:
             torch.cuda.empty_cache()
@@ -298,8 +299,10 @@ class ObjectDetection:
         if self.thread and self.thread.is_alive():
             self.thread.join(timeout=2.0)
         self.model = None
-        if torch.cuda.is_available():
-            torch.cuda.empty_cache()
+        if self._client is None:
+            import torch
+            if torch.cuda.is_available():
+                torch.cuda.empty_cache()
 
     def detect(self, frame, imgsz=416, conf=0.25, nms=True, classes=None, device=None):
         filter_classes = classes if classes else None

@@ -108,9 +108,11 @@ class KasaTakipModule(BaseModule):
         self._cashier_conf         = cashier_conf
 
         # YOLO modeli — Tür B
-        self._model = YOLO(model_path)
-        if torch.cuda.is_available():
-            self._model.to('cuda')
+        self._model = YOLO(model_path, task="detect")
+
+        # self._model = YOLO(model_path)
+        # if torch.cuda.is_available():
+        #     self._model.to('cuda')
 
         # İç durum
         # track_id → {first_seen, last_seen, last_red_time, center, confirmed}
