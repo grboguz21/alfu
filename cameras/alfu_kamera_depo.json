@@ -1,0 +1,103 @@
+{
+    "enabled": true,
+    "minio_folder": "alfu_kamera_depo",
+    "engine_path": "models/yolo26l.engine",
+    "camera_id": "4d74043a-2e8f-4c1e-9c02-4a5e08caff1a",
+    "module_id": "7628cc61-daef-4817-9f30-b7b1f3ca20ce",
+    "rtsp_url": "rtsp://YoUr46tdf:i75fgUyhg487Y@62.31.126.224:554/Streaming/Channels/2201",
+    "gst_framerate": 10,
+    "frame_resize": 0.3,
+    "video_path": "",
+    "alarms": [
+        {
+            "name": "freezer_open_too_long_alarm",
+            "module_id": "7628cc61-daef-4817-9f30-b7b1f3ca20ce",
+            "cooldown_seconds": 1800,
+            "trigger_on": "open_for_long_alert",
+            "with_snapshot": true,
+            "include_fields": [
+                "Total Open Minutes",
+                "Open Duration Minutes"
+            ],
+            "data": {
+                "Status": "Freezer Open Too Long"
+            }
+        },
+        {
+            "name": "lens_closed_alarm",
+            "module_id": "30a332f5-0df9-45a2-81d7-ba274d78b2e7",
+            "cooldown_seconds": 10,
+            "trigger_on": "should_alert",
+            "with_snapshot": true,
+            "data": {
+                "Status": "Camera Lens Closed"
+            }
+        }
+    ],
+    "modules": [
+        {
+            "type": "warehouse_freezer",
+            "name": "warehouse_freezer_depo",
+            "polygon": [
+                [
+                    9,
+                    355
+                ],
+                [
+                    131,
+                    287
+                ],
+                [
+                    343,
+                    971
+                ],
+                [
+                    277,
+                    1071
+                ],
+                [
+                    95,
+                    1070
+                ],
+                [
+                    8,
+                    852
+                ],
+                [
+                    12,
+                    359
+                ]
+            ],
+            "model_path": "models/freezer_cls_best.pt",
+            "sustain_sec": 2.0,
+            "smooth_window": 15,
+            "alert_open_sec": 300,
+            "alert_duration_sec": 1800,
+            "conf": 0.45,
+            "imgsz": 640,
+            "half": true,
+            "infer_every": 1,
+            "timezone": "Europe/London",
+            "show_panel": true
+        },
+        {
+            "type": "lens_detector",
+            "name": "lens_depo",
+            "cooldown": 999999,
+            "blur_threshold": 100.0,
+            "resize_factor": 10,
+            "night_threshold": 30.0,
+            "baseline_window": 50,
+            "show_panel": true
+        }
+    ],
+    "reconnect_delay_sec": 5,
+    "stream_alarm": {
+        "enabled": true,
+        "cooldown_seconds": 0,
+        "module_id": "0b86ed27-63ed-41e5-a290-a7dd56d61c7f",
+        "data": {
+            "Status": "Camera Connection Lost"
+        }
+    }
+}
