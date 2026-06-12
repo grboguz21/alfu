@@ -21,6 +21,7 @@ Config example:
         "smooth_window":      15,
         "alert_duration_sec": 5.0,
         "cooldown_seconds":   30,
+        "min_no_apron_height": 0,
         "reference":          "foot",
         "scale":              1.0,
         "show_panel":         true
@@ -60,6 +61,7 @@ DEFAULT_ALERT_DURATION_SEC = 5.0
 DEFAULT_COOLDOWN_SEC       = 30.0
 DEFAULT_APRON_CONF         = 0.7
 DEFAULT_SMOOTH_WINDOW      = 15
+DEFAULT_MIN_NO_APRON_HEIGHT = 0.0
 
 # Visual constants (BGR)
 COLOR_BUTCHER  = (0, 200, 200)
@@ -128,6 +130,7 @@ class ApronComplianceModule(BaseModule):
                  smooth_window: int = DEFAULT_SMOOTH_WINDOW,
                  alert_duration_sec: float = DEFAULT_ALERT_DURATION_SEC,
                  cooldown_seconds: float = DEFAULT_COOLDOWN_SEC,
+                 min_no_apron_height: float = DEFAULT_MIN_NO_APRON_HEIGHT,
                  reference: str = "foot",
                  scale: float = 1.0,
                  show_panel: bool = True,
@@ -139,6 +142,7 @@ class ApronComplianceModule(BaseModule):
         self.smooth_window      = int(smooth_window)
         self.alert_duration_sec = float(alert_duration_sec)
         self.cooldown_seconds   = float(cooldown_seconds)
+        self.min_no_apron_height = float(min_no_apron_height)
         self.reference        = reference
         self.scale            = float(scale)
         self.show_panel       = show_panel
@@ -336,6 +340,10 @@ class ApronComplianceModule(BaseModule):
                 raw_label, conf = self._classify_crop(frame, bbox)
                 if raw_label is None or conf < self.apron_conf:
                     raw_label = "uncertain"
+                elif raw_label == "no_apron":
+                    bbox_h = float(bbox[3]) - float(bbox[1])
+                    if bbox_h < self.min_no_apron_height:
+                        raw_label = "uncertain"
 
                 if track_id >= 0:
                     seen_track_ids.add(track_id)
@@ -477,13 +485,13 @@ class ApronComplianceModule(BaseModule):
                 thick = 2
 
             cv2.rectangle(frame, (x1, y1), (x2, y2), color, thick)
-            cv2.rectangle(frame, (x1, y1 - 24), (x1 + 230, y1), color, -1)
-            cv2.putText(frame, text, (x1 + 5, y1 - 6),
-                        cv2.FONT_HERSHEY_SIMPLEX, 0.55, COLOR_TEXT, 2, cv2.LINE_AA)
+            cv2.rectangle(frame, (x1, y1 - 16), (x1 + 140, y1), color, -1)
+            cv2.putText(frame, text, (x1 + 4, y1 - 4),
+                        cv2.FONT_HERSHEY_SIMPLEX, 0.35, COLOR_TEXT, 1, cv2.LINE_AA)
 
             if det["track_id"] >= 0:
-                cv2.putText(frame, f"ID {det['track_id']}", (x1, y2 + 18),
-                            cv2.FONT_HERSHEY_SIMPLEX, 0.5, color, 2, cv2.LINE_AA)
+                cv2.putText(frame, f"ID {det['track_id']}", (x1, y2 + 14),
+                            cv2.FONT_HERSHEY_SIMPLEX, 0.35, color, 1, cv2.LINE_AA)
         return frame
 
     def _draw_alarm(self, frame):

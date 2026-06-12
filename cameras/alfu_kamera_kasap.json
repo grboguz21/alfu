@@ -459,6 +459,7 @@
             "smooth_window": 15,
             "alert_duration_sec": 5.0,
             "cooldown_seconds": 300,
+            "min_no_apron_height": 60,
             "reference": "foot",
             "scale": 0.3,
             "show_panel": false

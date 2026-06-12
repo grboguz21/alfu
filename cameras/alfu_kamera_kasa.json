@@ -165,7 +165,7 @@
             "id_memory_duration": 4.0,
             "table_seen_threshold": 1.2,
             "cashier_empty_wait": 4.0,
-            "cashier_alarm_delay": 15.0,
+            "cashier_alarm_delay": 30.0,
             "alarm_min_customers": 3,
             "extra_lane_threshold": 2,
             "extra_lane_confirm": 2.0,
