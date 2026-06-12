@@ -266,7 +266,7 @@
             "dwell_threshold": 6.0,
             "reference": "foot",
             "scale": 0.3,
-            "show_panel": true,
+            "show_panel": false,
             "zones": [
                 {
                     "name": "Zone 2",
@@ -337,7 +337,7 @@
             "resize_factor": 10,
             "night_threshold": 30.0,
             "baseline_window": 50,
-            "show_panel": true
+            "show_panel": false
         },
         {
             "type": "apron_compliance",
@@ -455,13 +455,13 @@
                 }
             ],
             "classifier_path": "models/butcher_apron_detection.pt",
-            "apron_conf": 0.5,
+            "apron_conf": 0.8,
             "smooth_window": 15,
             "alert_duration_sec": 5.0,
             "cooldown_seconds": 300,
             "reference": "foot",
             "scale": 0.3,
-            "show_panel": true
+            "show_panel": false
         }
     ],
     "reconnect_delay_sec": 5,

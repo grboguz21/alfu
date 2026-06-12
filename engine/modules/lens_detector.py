@@ -523,9 +523,8 @@ class LensDetectorModule(BaseModule):
     def draw(self, frame):
         if self._last_info is None:
             return frame
-        # if self.show_panel:
-        #     frame = self._draw_status(frame, self._last_is_covered, self._last_info)
-        frame = self._draw_logs(frame)
+        if self.show_panel:
+            frame = self._draw_logs(frame)
         return frame
 
     def _draw_status(self, frame, is_covered, info):

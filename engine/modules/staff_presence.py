@@ -320,12 +320,10 @@ class StaffPresenceModule(BaseModule):
 
         if self.show_zones:
             frame = self._draw_zones(frame)
-        frame = self._draw_detections(frame)
-        if self._last_status["alert_active"]:
-            frame = self._draw_alarm(frame)
-
-        # info box only when show_panel is True
         if self.show_panel:
+            frame = self._draw_detections(frame)
+            if self._last_status["alert_active"]:
+                frame = self._draw_alarm(frame)
             frame = self._draw_panel(frame)
         return frame
 

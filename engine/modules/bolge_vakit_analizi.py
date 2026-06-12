@@ -254,6 +254,8 @@ class BolgeVakitAnaliziModule(BaseModule):
     def draw(self, frame):
         if self._last_status is None:
             return frame
+        if not self.show_panel:
+            return frame
 
         for r in self._regions:
             cv2.polylines(frame, [r["pts"]], True, r["color"], 2)
@@ -261,29 +263,28 @@ class BolgeVakitAnaliziModule(BaseModule):
             cv2.putText(frame, r["name"], (int(corner[0]), int(corner[1]) - 8),
                         cv2.FONT_HERSHEY_SIMPLEX, 0.6, r["color"], 2)
 
-        if self.show_panel:
-            for box_info in self._last_status.get("active_boxes", []):
-                x1, y1, x2, y2 = box_info["bbox"]
-                cx, cy         = box_info["cx"], box_info["cy"]
-                tid            = box_info["tid"]
+        for box_info in self._last_status.get("active_boxes", []):
+            x1, y1, x2, y2 = box_info["bbox"]
+            cx, cy         = box_info["cx"], box_info["cy"]
+            tid            = box_info["tid"]
 
-                cv2.circle(frame, (cx, cy), 4, (0, 255, 255), -1)
+            cv2.circle(frame, (cx, cy), 4, (0, 255, 255), -1)
 
-                color = (0, 0, 255)
-                label = f"ID:{tid}"
+            color = (0, 0, 255)
+            label = f"ID:{tid}"
 
-                if box_info["status"]:
-                    active = [s for s in box_info["status"] if s[2]]
-                    if active:
-                        color = (0, 255, 0)
-                        label = f"ID:{tid} | {active[0][1]:.1f}s"
-                    else:
-                        color = (0, 255, 255)
-                        label = f"ID:{tid} | Passing..."
+            if box_info["status"]:
+                active = [s for s in box_info["status"] if s[2]]
+                if active:
+                    color = (0, 255, 0)
+                    label = f"ID:{tid} | {active[0][1]:.1f}s"
+                else:
+                    color = (0, 255, 255)
+                    label = f"ID:{tid} | Passing..."
 
-                cv2.rectangle(frame, (x1, y1), (x2, y2), color, 2)
-                cv2.putText(frame, label, (x1, y1 - 10),
-                            cv2.FONT_HERSHEY_SIMPLEX, 0.5, color, 2)
+            cv2.rectangle(frame, (x1, y1), (x2, y2), color, 2)
+            cv2.putText(frame, label, (x1, y1 - 10),
+                        cv2.FONT_HERSHEY_SIMPLEX, 0.5, color, 2)
 
         return frame
 
