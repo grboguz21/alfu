@@ -10,6 +10,7 @@ from .staff_presence           import StaffPresenceModule
 from .bolge_vakit_rapor        import BolgeVakitRaporModule
 from .warehouse_freezer        import WarehouseFreezerModule
 from .bakery_workers_number import BakeryWorkersNumberModule
+from .apron_detection           import ApronComplianceModule
 
 def _scale_pt(pt, ratio: float):
     return [int(pt[0] * ratio), int(pt[1] * ratio)]
@@ -57,6 +58,7 @@ MODULE_REGISTRY = {
     "bolge_vakit_rapor":       BolgeVakitRaporModule,
     "warehouse_freezer":       WarehouseFreezerModule,
     "bakery_workers_number":   BakeryWorkersNumberModule,
+    "apron_compliance":        ApronComplianceModule,
 }
 
 
