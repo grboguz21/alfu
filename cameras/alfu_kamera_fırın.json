@@ -1,0 +1,130 @@
+{
+    "enabled": true,
+    "minio_folder": "alfu_kamera_firin",
+    "engine_path": "models/yolo26l.engine",
+    "camera_id": "5b796f9f-6ebe-4094-9e9a-17eb5f94de6c",
+    "module_id": "6c42bde0-ea9b-45f9-a2cc-a6379d4c3557",
+    "rtsp_url": "rtsp://YoUr46tdf:i75fgUyhg487Y@62.31.126.224:554/Streaming/Channels/801",
+    "gst_framerate": 10,
+    "frame_resize": 0.3,
+    "detection_conf": 0.25,
+    "video_path": "",
+    "alarms": [
+        {
+            "name": "lens_closed_alarm",
+            "module_id": "30a332f5-0df9-45a2-81d7-ba274d78b2e7",
+            "cooldown_seconds": 10,
+            "trigger_on": "should_alert",
+            "with_snapshot": true,
+            "data": {
+                "Status": "Camera Lens Closed"
+            }
+        },
+        {
+            "name": "overcrowding_alarm",
+            "module_id": "6c42bde0-ea9b-45f9-a2cc-a6379d4c3557",
+            "cooldown_seconds": 300,
+            "trigger_on": "overcrowding_alert",
+            "with_snapshot": true,
+            "include_fields": [
+                "People In Kitchen",
+                "Max People Today"
+            ],
+            "data": {
+                "Status": "Too Many People In Kitchen"
+            }
+        }
+    ],
+    "modules": [
+        {
+            "type": "bakery_workers_number",
+            "name": "bakery_workers_number_cam1",
+            "model_path": "models/yolo26l-pose.pt",
+            "kitchen_zone_rel": [
+                [
+                    0.720,
+                    0.000
+                ],
+                [
+                    0.928,
+                    0.000
+                ],
+                [
+                    0.889,
+                    0.545
+                ],
+                [
+                    0.815,
+                    0.558
+                ],
+                [
+                    0.720,
+                    0.492
+                ]
+            ],
+            "max_people": 3,
+            "show_panel": true
+        },
+        {
+            "type": "face_blurring",
+            "name": "yuz_blur_firin",
+            "model_path": "models/yolov8l_100e.pt",
+            "confidence": 0.45,
+            "process_every_n": 2,
+            "show_panel": false
+        },
+        {
+            "type": "lens_detector",
+            "name": "lens_firin",
+            "cooldown": 999999,
+            "blur_threshold": 100.0,
+            "resize_factor": 10,
+            "night_threshold": 30.0,
+            "baseline_window": 50,
+            "show_panel": true
+        }
+    ],
+    "reconnect_delay_sec": 5,
+    "stream_alarm": {
+        "enabled": true,
+        "cooldown_seconds": 0,
+        "module_id": "0b86ed27-63ed-41e5-a290-a7dd56d61c7f",
+        "data": {
+            "Status": "Camera Connection Lost"
+        }
+    },
+    "camera_move_alarm": {
+        "enabled": true,
+        "show_panel": true,
+        "cooldown_seconds": 5,
+        "rois": [
+            [
+                31,
+                686
+            ],
+            [
+                25,
+                497
+            ],
+            [
+                21,
+                331
+            ],
+            [
+                32,
+                149
+            ],
+            [
+                1250,
+                58
+            ],
+            [
+                738,
+                704
+            ]
+        ],
+        "data": {
+            "Status": "Camera Angle Changed"
+        }
+    }
+}
