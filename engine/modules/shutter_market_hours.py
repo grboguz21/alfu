@@ -29,7 +29,6 @@ Config example:
         "imgsz":               224,
         "sustain_sec":         5.0,
         "smooth_window":       15,
-        "show_panel":          false,
         "branch_hours_headers": {}
     }
 
@@ -83,9 +82,6 @@ MIN_CROP_MEAN = 20.0
 MIN_CROP_STD = 3.0
 
 COLOR_ROI = (0, 200, 255)
-OVERLAY_BG = (2, 109, 253)   # #fd6d02 BGR
-OVERLAY_TEXT = (255, 255, 255)
-PANEL_WIDTH = 400
 
 YOLO_TO_STATE = {
     "closed": "closed",
@@ -221,7 +217,6 @@ class ShutterMarketHoursModule(BaseModule):
         sustain_sec: float = 5.0,
         smooth_window: int = 15,
         roi_pad: int = ROI_PAD,
-        show_panel: bool = False,
         branch_id: str = "",
         branch_hours_url: str = "",
         branch_hours_poll_hours: float = 6.0,
@@ -233,7 +228,6 @@ class ShutterMarketHoursModule(BaseModule):
         self.conf = float(conf)
         self.imgsz = int(imgsz)
         self.roi_pad = int(roi_pad)
-        self.show_panel = bool(show_panel)
         self.development = bool(development)
         self.time_offset_hours = float(time_offset_hours)
         self.timezone = timezone.strip() or None
@@ -562,62 +556,6 @@ class ShutterMarketHoursModule(BaseModule):
         cv2.polylines(frame, [self._poly], True, COLOR_ROI, 2)
         x, y, w, h = cv2.boundingRect(self._poly)
         cv2.rectangle(frame, (x, y), (x + w, y + h), COLOR_ROI, 1)
-        if self.show_panel:
-            frame = self._draw_panel(frame)
-        return frame
-
-    def _draw_panel(self, frame):
-        st = self._last_status
-        if st is None:
-            return frame
-
-        fw = frame.shape[1]
-        pad = 10
-        infer_on = st["infer_on"]
-        idle_reason = st["idle_reason"]
-        pred = st["pred"]
-        probs = st.get("probs") or {}
-        stable = st["stable"]
-        opening = st["opening"]
-        closing = st["closing"]
-
-        prob = probs.get(pred if pred in probs else stable, 0.0)
-        if pred in ("—", "unknown", "bad"):
-            prob = probs.get(stable, 0.0)
-
-        mode = "YOLO" if infer_on else f"IDLE ({idle_reason})"
-        diff = self._hours_difference_data()
-        open_diff = diff.get("Opening Time Difference", "")
-        close_diff = diff.get("Closing Time Difference", "")
-        sched_open = diff.get("Scheduled Opening Time", "")
-        sched_close = diff.get("Scheduled Closing Time", "")
-        lines = [
-            f"{mode}  {st['clock']}",
-            st["schedule"],
-            f"pred: {pred} ({prob:.0%})  stable: {stable}",
-            f"opening: {opening.strftime('%H:%M:%S') if opening else '—'}"
-            + (f"  ({open_diff})" if open_diff else ""),
-            f"closing: {closing.strftime('%H:%M:%S') if closing else '—'}"
-            + (f"  ({close_diff})" if close_diff else ""),
-        ]
-        if sched_open or sched_close:
-            lines.append(f"scheduled: {sched_open} – {sched_close}")
-
-        box_h = 16 + len(lines) * 20
-        x1 = fw - PANEL_WIDTH - pad
-        y1 = pad
-        cv2.rectangle(frame, (x1, y1), (fw - pad, y1 + box_h), OVERLAY_BG, -1)
-        for i, line in enumerate(lines):
-            cv2.putText(
-                frame,
-                line[:64],
-                (x1 + 8, y1 + 18 + i * 20),
-                cv2.FONT_HERSHEY_SIMPLEX,
-                0.42,
-                OVERLAY_TEXT,
-                1,
-                cv2.LINE_AA,
-            )
         return frame
 
     # ==================== SHUTDOWN ====================
