@@ -3,9 +3,10 @@ Butcher Apron Compliance Alarm
 ------------------------------
 Type B module. Receives person bounding boxes and tracker IDs from the main
 pipeline, then runs its own classification model on each person inside a
-"butcher" zone. Raises an alarm when a butcher without an apron is observed
-for more than a configurable number of consecutive frames, with a cooldown
-between successive alarms.
+"butcher" zone. Per tracked person, classifications are smoothed over a
+window of frames to get a stable apron status. An alarm fires exactly once
+per continuous "no apron" episode, only after that stable status has held
+for `alert_duration_sec`, with a cooldown between successive alarms.
 
 Config example:
     {
@@ -17,6 +18,7 @@ Config example:
         ],
         "classifier_path":    "runs/classify/yolo26n_classification/weights/best.pt",
         "apron_conf":         0.7,
+        "smooth_window":      15,
         "alert_duration_sec": 5.0,
         "cooldown_seconds":   30,
         "reference":          "foot",
@@ -40,6 +42,7 @@ import os
 import json
 import time as _time
 import datetime
+from collections import deque, Counter
 
 import cv2
 import numpy as np
@@ -56,6 +59,7 @@ SAVE_INTERVAL_SEC          = 30
 DEFAULT_ALERT_DURATION_SEC = 5.0
 DEFAULT_COOLDOWN_SEC       = 30.0
 DEFAULT_APRON_CONF         = 0.7
+DEFAULT_SMOOTH_WINDOW      = 15
 
 # Visual constants (BGR)
 COLOR_BUTCHER  = (0, 200, 200)
@@ -79,6 +83,40 @@ ZONE_COLORS    = {"butcher": COLOR_BUTCHER}
 CLASS_LABEL_MAP = {"onluklu": "apron", "onluksuz": "no_apron"}
 
 
+# ==================== PER-TRACK STATE ====================
+
+class _TrackApronState:
+    """Per-track smoothing (majority vote) + one-shot alarm bookkeeping."""
+
+    def __init__(self, smooth_window: int):
+        self.history        = deque(maxlen=smooth_window)
+        self.stable_label   = "uncertain"
+        self.no_apron_since = None
+        self.alerted        = False
+
+    def update(self, label: str, now: float, alert_duration_sec: float) -> bool:
+        """Feed a new per-frame label. Returns True if this track just became
+        eligible to fire a "no apron" alarm (stable for alert_duration_sec,
+        not yet alerted for this episode)."""
+        self.history.append(label)
+
+        top_label, top_n = Counter(self.history).most_common(1)[0]
+        if top_n < max(3, len(self.history) // 2):
+            self.stable_label = "uncertain"
+        else:
+            self.stable_label = top_label
+
+        if self.stable_label != "no_apron":
+            self.no_apron_since = None
+            self.alerted        = False
+            return False
+
+        if self.no_apron_since is None:
+            self.no_apron_since = now
+        duration = now - self.no_apron_since
+        return duration >= alert_duration_sec and not self.alerted
+
+
 # ==================== MODULE ====================
 
 class ApronComplianceModule(BaseModule):
@@ -87,6 +125,7 @@ class ApronComplianceModule(BaseModule):
                  regions: list = None,
                  classifier_path: str = None,
                  apron_conf: float = DEFAULT_APRON_CONF,
+                 smooth_window: int = DEFAULT_SMOOTH_WINDOW,
                  alert_duration_sec: float = DEFAULT_ALERT_DURATION_SEC,
                  cooldown_seconds: float = DEFAULT_COOLDOWN_SEC,
                  reference: str = "foot",
@@ -97,6 +136,7 @@ class ApronComplianceModule(BaseModule):
         self.name             = name
         self.classifier_path  = classifier_path
         self.apron_conf         = float(apron_conf)
+        self.smooth_window      = int(smooth_window)
         self.alert_duration_sec = float(alert_duration_sec)
         self.cooldown_seconds   = float(cooldown_seconds)
         self.reference        = reference
@@ -125,12 +165,13 @@ class ApronComplianceModule(BaseModule):
         self._butcher_count       = 0
         self._with_apron_count    = 0
         self._without_apron_count = 0
-        self._no_apron_since      = None
         self._no_apron_seconds    = 0.0
         self._last_alarm_time     = 0.0
         self._alert_active        = False
         self._alert_active_until  = 0.0
         self._should_alert        = False
+        # per object_id smoothing + one-shot alarm state
+        self._track_states        = {}
         # daily-accumulated, persisted
         self._total_alarms        = 0
         self._last_reset_date     = None
@@ -205,9 +246,9 @@ class ApronComplianceModule(BaseModule):
         if today != self._last_reset_date:
             self._total_alarms     = 0
             self._alert_active     = False
-            self._no_apron_since   = None
             self._no_apron_seconds = 0.0
             self._last_alarm_time  = 0.0
+            self._track_states     = {}
             self._last_reset_date  = today
             self._save_state()
             print(f"[{self.name}] Daily reset → {today}")
@@ -259,7 +300,8 @@ class ApronComplianceModule(BaseModule):
         with_apron_count    = 0
         without_apron_count = 0
         detections          = []
-        any_no_apron        = False
+        seen_track_ids      = set()
+        ready_track_ids     = []
 
         n = len(bboxes) if bboxes is not None else 0
         if n > 0:
@@ -291,60 +333,62 @@ class ApronComplianceModule(BaseModule):
 
                 # inside butcher zone — classify apron status
                 butcher_count += 1
-                label, conf = self._classify_crop(frame, bbox)
+                raw_label, conf = self._classify_crop(frame, bbox)
+                if raw_label is None or conf < self.apron_conf:
+                    raw_label = "uncertain"
 
-                if label is None or conf < self.apron_conf:
-                    detections.append({
-                        "bbox":     bbox,
-                        "track_id": track_id,
-                        "zone":     "butcher",
-                        "label":    "uncertain",
-                        "conf":     conf,
-                    })
-                elif label == "apron":
+                if track_id >= 0:
+                    seen_track_ids.add(track_id)
+                    state = self._track_states.setdefault(
+                        track_id, _TrackApronState(self.smooth_window))
+                    if state.update(raw_label, now, self.alert_duration_sec):
+                        ready_track_ids.append(track_id)
+                    label = state.stable_label
+                else:
+                    label = raw_label
+
+                if label == "apron":
                     with_apron_count += 1
-                    detections.append({
-                        "bbox":     bbox,
-                        "track_id": track_id,
-                        "zone":     "butcher",
-                        "label":    "apron",
-                        "conf":     conf,
-                    })
-                else:                                  # "no_apron"
+                elif label == "no_apron":
                     without_apron_count += 1
-                    any_no_apron = True
-                    detections.append({
-                        "bbox":     bbox,
-                        "track_id": track_id,
-                        "zone":     "butcher",
-                        "label":    "no_apron",
-                        "conf":     conf,
-                    })
+
+                detections.append({
+                    "bbox":     bbox,
+                    "track_id": track_id,
+                    "zone":     "butcher",
+                    "label":    label,
+                    "conf":     conf,
+                })
 
         self._butcher_count       = butcher_count
         self._with_apron_count    = with_apron_count
         self._without_apron_count = without_apron_count
 
-        # ----- alarm logic (duration-debounced + cooldown) -----
+        # drop state for tracks no longer seen
+        for track_id in list(self._track_states.keys()):
+            if track_id not in seen_track_ids:
+                del self._track_states[track_id]
+
+        # ----- alarm logic (one-shot per "no apron" episode + cooldown) -----
         in_cooldown = (now - self._last_alarm_time) < self.cooldown_seconds
 
-        if any_no_apron:
-            if self._no_apron_since is None:
-                self._no_apron_since = now
-            self._no_apron_seconds = now - self._no_apron_since
-            if not in_cooldown and self._no_apron_seconds >= self.alert_duration_sec:
-                self._total_alarms      += 1
-                self._last_alarm_time    = now
-                self._alert_active       = True
-                self._alert_active_until = now + 3.0
-                self._should_alert       = True
-                self._no_apron_since     = now
-                self._no_apron_seconds   = 0.0
-                print(f"[{self.name}] !!! ALARM #{self._total_alarms}: "
-                      f"butcher without apron")
-        else:
-            self._no_apron_since   = None
-            self._no_apron_seconds = 0.0
+        if ready_track_ids and not in_cooldown:
+            self._total_alarms      += 1
+            self._last_alarm_time    = now
+            self._alert_active       = True
+            self._alert_active_until = now + 3.0
+            self._should_alert       = True
+            for track_id in ready_track_ids:
+                self._track_states[track_id].alerted = True
+            print(f"[{self.name}] !!! ALARM #{self._total_alarms}: "
+                  f"butcher without apron (track(s): {ready_track_ids})")
+
+        no_apron_durations = [
+            now - state.no_apron_since
+            for state in self._track_states.values()
+            if state.stable_label == "no_apron" and state.no_apron_since is not None
+        ]
+        self._no_apron_seconds = max(no_apron_durations) if no_apron_durations else 0.0
 
         if self._alert_active and now >= self._alert_active_until:
             self._alert_active = False
@@ -479,8 +523,8 @@ class ApronComplianceModule(BaseModule):
         self._butcher_count       = 0
         self._with_apron_count    = 0
         self._without_apron_count = 0
-        self._no_apron_since      = None
         self._no_apron_seconds    = 0.0
         self._last_alarm_time     = 0.0
         self._alert_active        = False
         self._total_alarms        = 0
+        self._track_states        = {}

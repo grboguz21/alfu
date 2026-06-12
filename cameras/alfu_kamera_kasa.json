@@ -24,7 +24,7 @@
         {
             "name": "no_cashier_alarm",
             "module_id": "f6b03fb9-29b9-420b-9b6a-743a06d0c84a",
-            "cooldown_seconds": 60,
+            "cooldown_seconds": 120,
             "trigger_on": "no_cashier_alert",
             "with_snapshot": true,
             "data": {
@@ -125,8 +125,42 @@
                     3
                 ]
             ],
-            "kasa1_coords": [[5,55],[2,183],[73,172],[123,77]],
-            "kasa2_coords": [[460,171],[623,145],[568,14],[436,26]],
+            "kasa1_coords": [
+                [
+                    5,
+                    55
+                ],
+                [
+                    2,
+                    183
+                ],
+                [
+                    73,
+                    172
+                ],
+                [
+                    123,
+                    77
+                ]
+            ],
+            "kasa2_coords": [
+                [
+                    460,
+                    171
+                ],
+                [
+                    623,
+                    145
+                ],
+                [
+                    568,
+                    14
+                ],
+                [
+                    436,
+                    26
+                ]
+            ],
             "entry_wait_time": 3.0,
             "id_memory_duration": 4.0,
             "table_seen_threshold": 1.2,

@@ -7,7 +7,7 @@
     "rtsp_url": "rtsp://YoUr46tdf:i75fgUyhg487Y@62.31.126.224:554/Streaming/Channels/1601",
     "gst_framerate": 20,
     "frame_resize": 0.3,
-    "detection_conf": 0.40,
+    "detection_conf": 0.5,
     "video_path": "",
     "reports": [
         {
@@ -262,7 +262,7 @@
         {
             "type": "bolge_vakit_analizi",
             "name": "bolge_vakit_kasap",
-            "detection_conf": 0.40,
+            "detection_conf": 0.5,
             "dwell_threshold": 6.0,
             "reference": "foot",
             "scale": 0.3,
@@ -455,7 +455,8 @@
                 }
             ],
             "classifier_path": "models/butcher_apron_detection.pt",
-            "apron_conf": 0.7,
+            "apron_conf": 0.5,
+            "smooth_window": 15,
             "alert_duration_sec": 5.0,
             "cooldown_seconds": 300,
             "reference": "foot",
