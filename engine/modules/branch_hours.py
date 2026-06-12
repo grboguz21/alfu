@@ -16,7 +16,7 @@ import urllib.error
 import urllib.request
 from dataclasses import dataclass
 from datetime import datetime, time, timedelta
-from typing import Any, Optional
+from typing import Optional
 
 DEFAULT_API_BASE = "https://app.youreye.co.uk/api/Branches"
 DEFAULT_TIMEOUT_SEC = 15.0
@@ -83,17 +83,17 @@ def format_signed_delta(actual: datetime, scheduled: time) -> str:
     """
     actual − scheduled on the same calendar day as *actual*.
 
-    Negative → earlier than scheduled (e.g. 08:10 vs 09:00 → -00:49:40).
-    Positive → later than scheduled.
+    Negative → earlier than scheduled (e.g. 08:10 vs 09:00 → "00:49:40 erken").
+    Positive → later than scheduled (e.g. "04:00:45 geç").
     """
     sched_dt = combine_date_time(actual, scheduled)
     delta: timedelta = actual - sched_dt
     total_sec = int(delta.total_seconds())
-    sign = "+" if total_sec >= 0 else "-"
+    label = "Late" if total_sec >= 0 else "Early"
     total_sec = abs(total_sec)
     hours, rem = divmod(total_sec, 3600)
     minutes, seconds = divmod(rem, 60)
-    return f"{sign}{hours:02d}:{minutes:02d}:{seconds:02d}"
+    return f"{hours:02d}:{minutes:02d}:{seconds:02d} {label}"
 
 
 def build_hours_difference_data(

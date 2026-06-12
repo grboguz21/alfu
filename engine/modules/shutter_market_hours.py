@@ -534,8 +534,8 @@ class ShutterMarketHoursModule(BaseModule):
         self._closed_just_now = False
 
         data = {
-            "Opening Time": opening.isoformat(timespec="seconds") if opening else "",
-            "Closing Time": closing.isoformat(timespec="seconds") if closing else "",
+            "Opening Time": opening.strftime("%H:%M:%S") if opening else "",
+            "Closing Time": closing.strftime("%H:%M:%S") if closing else "",
             "Stable Shutter": st.get("stable", self._state_machine.stable_state),
             "Frame Prediction": st.get("pred", ""),
             "YOLO Active": bool(st.get("infer_on", False)),

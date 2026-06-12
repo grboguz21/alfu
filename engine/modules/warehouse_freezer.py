@@ -515,8 +515,8 @@ class WarehouseFreezerModule(BaseModule):
         pred = st["pred"]
         stable = st["stable"]
         probs = st["probs"]
-        pad = 10
-        box_w = 420
+        pad = 6
+        box_w = 260
         fw = frame.shape[1]
         prob = probs.get(stable if stable in probs else pred, 0.0) if probs else 0.0
         live_min = self._total_open_seconds_live(now) / 60.0
@@ -536,7 +536,8 @@ class WarehouseFreezerModule(BaseModule):
         if st["open_for_long"]:
             lines.append("*** ALERT: FREEZER OPEN TOO LONG ***")
 
-        box_h = 16 + len(lines) * 20
+        line_h = 15
+        box_h = 12 + len(lines) * line_h
         x1 = fw - box_w - pad
         y1 = pad
         cv2.rectangle(frame, (x1, y1), (fw - pad, y1 + box_h), COLOR_OVERLAY_BG, -1)
@@ -544,10 +545,10 @@ class WarehouseFreezerModule(BaseModule):
             color = COLOR_ALERT if "ALERT" in line else COLOR_OVERLAY_TEXT
             cv2.putText(
                 frame,
-                line[:64],
-                (x1 + 8, y1 + 18 + i * 20),
+                line[:48],
+                (x1 + 6, y1 + 13 + i * line_h),
                 cv2.FONT_HERSHEY_SIMPLEX,
-                0.42,
+                0.32,
                 color,
                 1,
                 cv2.LINE_AA,
